@@ -7,7 +7,7 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     // Check initial state
-    const savedTheme = localStorage.getItem('gym-theme');
+    const savedTheme = localStorage.getItem('log-atlas-theme');
     const isDarkInitial = savedTheme === 'dark' || 
       (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
     
@@ -23,7 +23,7 @@ export default function ThemeToggle() {
     const newDark = !isDark;
     setIsDark(newDark);
     const themeStr = newDark ? 'dark' : 'light';
-    localStorage.setItem('gym-theme', themeStr);
+    localStorage.setItem('log-atlas-theme', themeStr);
     
     if (newDark) {
       document.documentElement.classList.add('dark');
