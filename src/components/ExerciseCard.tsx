@@ -30,10 +30,17 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
     const numSets = parseInt(exercise.sets) || 0;
     const saved = localStorage.getItem(`completed-${exercise.id}`);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        setCompletedSets(parsed);
-        setIsCompleted(parsed.every(s => s) && parsed.length > 0);
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setCompletedSets(parsed);
+          setIsCompleted(parsed.every(s => s) && parsed.length > 0);
+        } else {
+          setCompletedSets(new Array(numSets).fill(false));
+        }
+      } catch (e) {
+        console.error('Failed to parse localStorage data', e);
+        setCompletedSets(new Array(numSets).fill(false));
       }
     } else {
       setCompletedSets(new Array(numSets).fill(false));

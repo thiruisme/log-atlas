@@ -104,7 +104,7 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
           </div>
 
           <div className="p-6 bg-error-bg border border-error-border rounded-3xl">
-            <h3 className="text-[14px] uppercase tracking-[0.3em] text-error font-black mb-4 italic">Form Warnings</h3>
+            <h3 className="text-[14px] uppercase tracking-[0.3em] text-error font-bold mb-4 italic">Form Warnings</h3>
             <ul className="space-y-3 text-s text-error font-regular opacity-80">
               <li className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-error"></div>

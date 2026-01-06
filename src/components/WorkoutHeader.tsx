@@ -1,7 +1,6 @@
-'use client';
-
 import Link from 'next/link';
 import { Workout } from '@/data/routine';
+import ThemeToggle from './ThemeToggle';
 
 interface WorkoutHeaderProps {
   workout: Workout;
@@ -27,14 +26,17 @@ export default function WorkoutHeader({ workout }: WorkoutHeaderProps) {
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-black leading-tight tracking-tighter truncate uppercase italic">{workout.title}</h1>
-          <p className="text-[12px] text-accent font-semibold truncate italic">{workout.focus}</p>
+          <p className="text-[10px] text-accent font-black uppercase tracking-[0.2em] truncate italic">{workout.focus}</p>
         </div>
-        <button 
-          onClick={handleReset}
-          className="bg-card-border/50 text-[9px] font-black text-text-muted uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-error/10 hover:text-error transition-all active:scale-90"
-        >
-          Reset
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button 
+            onClick={handleReset}
+            className="bg-card-border/50 text-[9px] font-black text-text-muted uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-error/10 hover:text-error transition-all active:scale-90"
+          >
+            Reset
+          </button>
+        </div>
       </div>
     </header>
   );

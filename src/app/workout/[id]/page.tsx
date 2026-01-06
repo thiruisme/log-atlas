@@ -1,24 +1,48 @@
+'use client';
+
+import { use, useEffect, useState } from 'react';
 import { getWorkoutById } from '@/data/utils';
+import { Workout } from '@/data/routine';
 import ExerciseCard from '@/components/ExerciseCard';
 import WorkoutHeader from '@/components/WorkoutHeader';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const workout = getWorkoutById(id);
+export default function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [workout, setWorkout] = useState<Workout | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
 
-  if (!workout) {
-    notFound();
-  }
+  useEffect(() => {
+    const found = getWorkoutById(id);
+    setWorkout(found);
+    setLoading(false);
+  }, [id]);
+
+  if (loading) return null;
+  if (!workout) return notFound();
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-32">
       <WorkoutHeader workout={workout} />
 
       <div className="max-w-md mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[10px] uppercase tracking-[0.3em] text-text-muted font-black">Exercise List</h2>
+        {workout.notes && workout.notes.length > 0 && (
+          <div className="bg-card border border-card-border p-5 rounded-[2rem] shadow-sm mb-6">
+            <h4 className="text-[14px] uppercase tracking-[0.3em] text-accent font-bold italic mb-3">Session Notes</h4>
+            <ul className="space-y-1">
+              {workout.notes.map((note, i) => (
+                <li key={i} className="text-s text-text-secondary font-medium italic flex items-center gap-2">
+                  <span className="text-accent font-black">•</span>
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-[10px] uppercase tracking-[0.3em] text-text-muted font-black italic">Exercise List</h2>
           <span className="text-[14px] bg-accent/5 text-accent px-2 py-1 rounded-lg font-black italic">{workout.exercises.length} Exercises</span>
         </div>
         
