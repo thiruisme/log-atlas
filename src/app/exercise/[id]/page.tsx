@@ -22,9 +22,9 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
   if (!exercise) return notFound();
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-12">
+    <main className="min-h-screen max-w-md mx-auto bg-background text-foreground pb-12">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-card-border p-4">
-        <div className="max-w-md mx-auto flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <button 
             onClick={() => router.back()}
             className="p-2 -ml-2 text-text-muted hover:text-accent transition-colors"
@@ -37,7 +37,7 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
         </div>
       </header>
 
-      <div className="max-w-md mx-auto p-6">
+      <div className="p-6">
         <h2 className="text-4xl font-black mb-2 tracking-tighter italic uppercase leading-tight">{exercise.name}</h2>
         <div className="flex gap-8 mb-10">
           <div className="flex flex-col">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Exercise, WorkoutExercise, ExerciseLog, EquipmentType } from '@/types/db';
+import ScrollPicker from './ScrollPicker';
 
 interface ExerciseCardProps {
   exerciseDef: Exercise;
@@ -21,11 +22,17 @@ function getWeightOptions(equipment: EquipmentType = 'Other'): number[] {
   } else if (equipment === 'Barbell') {
     for (let i = 20; i <= 300; i += 2.5) options.push(i);
   } else {
-    // Machine, Cable, Bodyweight, Other
     const start = equipment === 'Bodyweight' ? 0 : 5;
     for (let i = start; i <= 200; i += 5) options.push(i);
   }
   return options;
+}
+
+function getRepsOptions(): number[] {
+    // 0 for empty/-
+    const opts = [0];
+    for(let i=1; i<=100; i++) opts.push(i);
+    return opts;
 }
 
 export default function ExerciseCard({ exerciseDef, target, log, previousLog, onUpdateLog }: ExerciseCardProps) {
@@ -33,7 +40,8 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
   const [timer, setTimer] = useState<number | null>(null);
 
   // Generate options once based on equipment
-  const weightOptions = getWeightOptions(exerciseDef.equipment);
+  const weightOptions = useMemo(() => getWeightOptions(exerciseDef.equipment), [exerciseDef.equipment]);
+  const repsOptions = useMemo(() => getRepsOptions(), []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -108,9 +116,22 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
           </h3>
           <div className="flex gap-4 mt-2">
              <span className="text-[10px] font-black text-accent uppercase tracking-widest italic">{target.sets} Sets × {target.reps} Reps</span>
-             {timer !== null && (
-                 <span className="text-[10px] font-black text-error uppercase tracking-widest animate-pulse">REST {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</span>
-             )}
+             <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                timer !== null ? stopTimer() : startTimer(); 
+              }}
+              className={`relative z-10 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${timer !== null ? 'text-error animate-pulse' : 'text-text-muted hover:text-accent'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {timer !== null ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                )}
+              </svg>
+              {timer !== null ? `STOP ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}` : exerciseDef.defaultRest || target.rest}
+            </button>
           </div>
         </div>
       </div>
@@ -126,10 +147,9 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
                    const prevSet = previousLog?.sets[i];
                    
                    // Ensure current weight is in options
-                   const currentOptions = [...weightOptions];
-                   if (setLog.weight > 0 && !currentOptions.includes(setLog.weight)) {
-                       currentOptions.push(setLog.weight);
-                       currentOptions.sort((a, b) => a - b);
+                   let currentWeightOptions = weightOptions;
+                   if (setLog.weight > 0 && !weightOptions.includes(setLog.weight)) {
+                       currentWeightOptions = [...weightOptions, setLog.weight].sort((a, b) => a - b);
                    }
                    
                    return (
@@ -147,28 +167,25 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
                            </div>
                            
                            {/* Weight Picker */}
-                           <div className="relative">
-                               <select
-                                  value={setLog.weight || 0}
-                                  onChange={(e) => updateSet(i, 'weight', parseFloat(e.target.value))}
-                                  className="w-full bg-background border border-card-border rounded-xl p-3 text-center font-bold text-lg focus:border-accent outline-none appearance-none text-foreground"
-                                  style={{ textAlignLast: 'center' } as any}
-                               >
-                                   <option value={0}>-</option>
-                                   {currentOptions.map(w => (
-                                       <option key={w} value={w}>{w}</option>
-                                   ))}
-                               </select>
+                           <div className="relative w-full">
+                               <ScrollPicker 
+                                  value={setLog.weight || 0} 
+                                  options={currentWeightOptions} 
+                                  onChange={(val) => updateSet(i, 'weight', val)}
+                                  suffix="KG"
+                                  disabled={setLog.completed}
+                                  title="Select Weight"
+                               />
                            </div>
 
-                           {/* Reps Input */}
-                           <div className="relative">
-                               <input 
-                                  type="number" 
-                                  placeholder={prevSet ? String(prevSet.reps) : target.reps}
-                                  value={setLog.reps || ''}
-                                  onChange={(e) => updateSet(i, 'reps', parseFloat(e.target.value))}
-                                  className="w-full bg-background border border-card-border rounded-xl p-3 text-center font-bold text-lg focus:border-accent outline-none"
+                           {/* Reps Picker */}
+                           <div className="relative w-full">
+                               <ScrollPicker 
+                                  value={setLog.reps || 0} 
+                                  options={repsOptions} 
+                                  onChange={(val) => updateSet(i, 'reps', val)}
+                                  disabled={setLog.completed}
+                                  title="Select Reps"
                                />
                            </div>
 
