@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppData, Exercise, Workout, WorkoutLog, WorkoutExercise } from '@/types/db';
+import { AppData, Exercise, Workout, WorkoutLog, WorkoutExercise, ExerciseLog } from '@/types/db';
 import { routine } from '@/data/routine';
 
 // --- Initial Seed Data Transformation ---
