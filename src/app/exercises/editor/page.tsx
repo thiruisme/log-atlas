@@ -4,12 +4,12 @@ import { useStorage } from '@/context/StorageContext';
 import { Exercise, MuscleGroup } from '@/types/db';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core', 'Cardio', 'Other'];
 const EQUIPMENT_TYPES = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other'];
 
-export default function ExerciseEditor() {
+function ExerciseEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data, addExercise, updateExercise } = useStorage();
@@ -160,5 +160,13 @@ export default function ExerciseEditor() {
         </div>
       </form>
     </main>
+  );
+}
+
+export default function ExerciseEditor() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-text-muted">Loading Editor...</div>}>
+      <ExerciseEditorContent />
+    </Suspense>
   );
 }

@@ -4,11 +4,11 @@ import { useStorage } from '@/context/StorageContext';
 import { Workout, WorkoutExercise } from '@/types/db';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Flexible'];
 
-export default function WorkoutEditor() {
+function WorkoutEditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data, addWorkout, updateWorkout } = useStorage();
@@ -238,5 +238,13 @@ export default function WorkoutEditor() {
           </div>
       )}
     </main>
+  );
+}
+
+export default function WorkoutEditor() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-text-muted">Loading Editor...</div>}>
+      <WorkoutEditorContent />
+    </Suspense>
   );
 }
