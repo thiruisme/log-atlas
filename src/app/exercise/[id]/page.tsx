@@ -1,22 +1,24 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { getExerciseById } from '@/data/utils';
-import { Exercise } from '@/data/routine';
-import { notFound } from 'next/navigation';
+import { useStorage } from '@/context/StorageContext';
+import { Exercise } from '@/types/db';
+import { notFound, useRouter } from 'next/navigation';
 
 export default function ExercisePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { data, isLoading } = useStorage();
   const [exercise, setExercise] = useState<Exercise | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const found = getExerciseById(id);
-    setExercise(found);
-    setLoading(false);
-  }, [id]);
+    if (!isLoading) {
+      const found = data.exercises.find(e => e.id === id);
+      setExercise(found);
+    }
+  }, [id, data.exercises, isLoading]);
 
-  if (loading) return null;
+  if (isLoading) return null;
   if (!exercise) return notFound();
 
   return (
@@ -24,7 +26,7 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-card-border p-4">
         <div className="max-w-md mx-auto flex items-center gap-4">
           <button 
-            onClick={() => window.history.back()}
+            onClick={() => router.back()}
             className="p-2 -ml-2 text-text-muted hover:text-accent transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -40,11 +42,11 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
         <div className="flex gap-8 mb-10">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-widest text-text-muted font-black">Sets</span>
-            <span className="text-xl font-black text-accent italic">{exercise.sets}</span>
+            <span className="text-xl font-black text-accent italic">{exercise.defaultSets}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-widest text-text-muted font-black">Reps</span>
-            <span className="text-xl font-black text-accent italic">{exercise.reps}</span>
+            <span className="text-xl font-black text-accent italic">{exercise.defaultReps}</span>
           </div>
         </div>
 
@@ -69,12 +71,12 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
               <div className="h-px flex-1 bg-card-border"></div>
             </h3>
             <div className="space-y-6">
-              {[
+              {(exercise.instructions || [
                 "Set up with proper form as described in the cues.",
                 "Execute the movement with control, focusing on the target muscle.",
                 "Maintain full range of motion throughout each rep.",
                 "Squeeze at the peak of the contraction."
-              ].map((step, i) => (
+              ]).map((step, i) => (
                 <div key={i} className="flex gap-5">
                   <span className="flex-shrink-0 w-8 h-8 bg-accent text-accent-foreground rounded-xl flex items-center justify-center text-xs font-black shadow-lg shadow-accent/20">{i+1}</span>
                   <p className="text-text-secondary font-regular text-s">{step}</p>
@@ -89,12 +91,12 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
               <div className="h-px flex-1 bg-card-border"></div>
             </h3>
             <ul className="space-y-4">
-              {(exercise.notes?.length ?? 0) > 0 ? exercise.notes?.map((note: string, i: number) => (
-                <li key={i} className="flex items-start gap-4 text-text-secondary font-bold text-sm">
+              {exercise.notes ? (
+                <li className="flex items-start gap-4 text-text-secondary font-bold text-sm">
                   <span className="text-accent mt-1 text-lg leading-none">•</span>
-                  <span>{note}</span>
+                  <span>{exercise.notes}</span>
                 </li>
-              )) : (
+              ) : (
                 <li className="flex items-start gap-4 text-text-secondary font-regular text-s">
                   <span className="text-accent mt-1 text-lg leading-none">•</span>
                   <span>Focus on mind-muscle connection.</span>

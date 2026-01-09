@@ -1,64 +1,106 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { getWorkoutById } from '@/data/utils';
-import { Workout } from '@/data/routine';
+import { useStorage } from '@/context/StorageContext';
+import { ExerciseLog, WorkoutLog } from '@/types/db';
 import ExerciseCard from '@/components/ExerciseCard';
 import WorkoutHeader from '@/components/WorkoutHeader';
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { notFound, useRouter } from 'next/navigation';
 
 export default function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [workout, setWorkout] = useState<Workout | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { data, addLog, getHistoryForExercise } = useStorage();
+  
+  const workout = data.workouts.find(w => w.id === id);
+  const [log, setLog] = useState<WorkoutLog | null>(null);
 
   useEffect(() => {
-    const found = getWorkoutById(id);
-    setWorkout(found);
-    setLoading(false);
-  }, [id]);
+    if (workout) {
+      // Initialize draft log
+      const initialLog: WorkoutLog = {
+        id: crypto.randomUUID(),
+        workoutId: workout.id,
+        date: new Date().toISOString(),
+        durationMinutes: 0,
+        exercises: workout.exercises.map(ex => ({
+          exerciseId: ex.exerciseId,
+          sets: Array(ex.sets).fill({ weight: 0, reps: 0, completed: false })
+        }))
+      };
+      setLog(initialLog);
+    }
+  }, [workout]);
 
-  if (loading) return null;
-  if (!workout) return notFound();
+  if (!workout) return <div className="p-6">Loading...</div>; // Or notFound() if fully loaded and missing
+  if (!log) return <div className="p-6">Preparing Session...</div>;
+
+  const handleUpdateExerciseLog = (exerciseId: string, updatedExLog: ExerciseLog) => {
+    setLog(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        exercises: prev.exercises.map(e => e.exerciseId === exerciseId ? updatedExLog : e)
+      };
+    });
+  };
+
+  const handleFinish = () => {
+    if(confirm('Finish and save workout?')) {
+        addLog(log);
+        router.push('/');
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-32">
-      <WorkoutHeader workout={workout} />
+    <main className="min-h-screen bg-background text-foreground pb-40">
+      {/* We can re-use WorkoutHeader or just inline a simple one given the new data structure 
+          The old WorkoutHeader expects a different type, so let's simplify here for now or adapt it.
+          For speed, I'll inline the header style matching the dashboard.
+      */}
+      <div className="bg-card pt-8 pb-12 px-6 rounded-b-[3rem] border-b border-card-border mb-8 shadow-xl">
+           <div className="max-w-md mx-auto">
+               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent block mb-2">{workout.day}</span>
+               <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none mb-2">{workout.title}</h1>
+               <p className="text-text-secondary font-bold uppercase italic text-sm">{workout.focus}</p>
+           </div>
+      </div>
 
       <div className="max-w-md mx-auto p-6 space-y-6">
-        {workout.notes && workout.notes.length > 0 && (
-          <div className="bg-card border border-card-border p-5 rounded-[2rem] shadow-sm mb-6">
-            <h4 className="text-[14px] uppercase tracking-[0.3em] text-accent font-bold italic mb-3">Session Notes</h4>
-            <ul className="space-y-1">
-              {workout.notes.map((note, i) => (
-                <li key={i} className="text-s text-text-secondary font-medium italic flex items-center gap-2">
-                  <span className="text-accent font-black">•</span>
-                  {note}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         <div className="flex items-center justify-between">
           <h2 className="text-[10px] uppercase tracking-[0.3em] text-text-muted font-black italic">Exercise List</h2>
           <span className="text-[14px] bg-accent/5 text-accent px-2 py-1 rounded-lg font-black italic">{workout.exercises.length} Exercises</span>
         </div>
         
-        {workout.exercises.map((exercise) => (
-          <ExerciseCard key={exercise.id} exercise={exercise} />
-        ))}
+        {workout.exercises.map((target) => {
+          const exerciseDef = data.exercises.find(e => e.id === target.exerciseId);
+          const currentExLog = log.exercises.find(e => e.exerciseId === target.exerciseId);
+          const history = getHistoryForExercise(target.exerciseId);
+          const previousLog = history.length > 0 ? history[0] : undefined;
+
+          if (!exerciseDef || !currentExLog) return null;
+
+          return (
+            <ExerciseCard 
+              key={target.exerciseId} 
+              exerciseDef={exerciseDef}
+              target={target}
+              log={currentExLog}
+              previousLog={previousLog}
+              onUpdateLog={(updated) => handleUpdateExerciseLog(target.exerciseId, updated)}
+            />
+          );
+        })}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none z-30">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/90 to-transparent z-30 pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto">
-          <Link 
-            href="/"
+          <button 
+            onClick={handleFinish}
             className="block w-full bg-foreground text-background text-center py-5 rounded-[2rem] font-black text-xl shadow-2xl hover:translate-y-[-2px] active:translate-y-[0px] transition-all uppercase italic tracking-tighter"
           >
             Finish Workout
-          </Link>
+          </button>
         </div>
       </div>
     </main>
