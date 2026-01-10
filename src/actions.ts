@@ -137,10 +137,10 @@ export async function logoutAction() {
 
 // --- Data Actions ---
 
-export async function getBootstrapData(): Promise<AppData> {
+export async function getBootstrapData(): Promise<AppData | null> {
     const session = await auth();
     if (!session?.user?.id) {
-        throw new Error("Unauthorized");
+        return null;
     }
     const userId = session.user.id;
 

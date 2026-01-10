@@ -31,10 +31,11 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       try {
         const serverData = await getBootstrapData();
-        setData(serverData);
+        if (serverData) {
+            setData(serverData);
+        }
       } catch (e) {
         console.error("Failed to load user data", e);
-        // If unauthorized, middleware usually catches it, but if API fails:
       } finally {
         setIsLoading(false);
       }
