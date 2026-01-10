@@ -107,6 +107,9 @@ export async function registerUser(formData: FormData) {
               }
           }
       }
+    }, {
+        maxWait: 5000,
+        timeout: 30000
     });
 
     // Login immediately after register?
