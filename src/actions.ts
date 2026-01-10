@@ -4,13 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { hash } from 'bcryptjs';
 import { auth, signIn, signOut } from '@/auth';
 import { routine } from '@/data/routine';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_noStore } from 'next/cache';
 import { AppData, Exercise, Workout, WorkoutLog, WorkoutExercise, ExerciseLog } from '@/types/db';
 
 // --- Auth Actions ---
 
 export async function registerUser(formData: FormData) {
-  const email = formData.get('email') as string;
+  const email = (formData.get('email') as string)?.toLowerCase().trim();
   const password = formData.get('password') as string;
   const name = formData.get('name') as string;
 
@@ -115,8 +115,11 @@ export async function registerUser(formData: FormData) {
     // Login immediately after register?
     // We can't easily sign them in inside a server action called from a form without redirecting.
     // We will let the client handle the redirect to login or auto-login via next-auth's signIn
-  } catch (e) {
+  } catch (e: any) {
       console.error(e);
+      if (e.code === 'P2002') {
+          return { error: 'User already exists' };
+      }
       return { error: 'Failed to create account' };
   }
   
@@ -127,21 +130,31 @@ export async function loginAction(formData: FormData) {
     try {
         await signIn("credentials", formData);
     } catch (error) {
-        if ((error as Error).message.includes("CredentialsSignin")) {
-            return { error: "Invalid credentials." };
+        const err = error as Error;
+        // Auth.js v5 uses specific error codes or message patterns
+        if (err.message.includes("CredentialsSignin") || err.name === "CredentialsSignin") {
+            return { error: "Invalid email or password. Please try again." };
         }
-        throw error;
+        // NextAuth throws a redirect error on success, we must rethrow it
+        if (err.message.includes("NEXT_REDIRECT")) {
+            throw error;
+        }
+        console.error("Login Action Error:", error);
+        return { error: "An unexpected error occurred. Please check your connection." };
     }
 }
 
 export async function logoutAction() {
-    await signOut();
+    return await signOut();
 }
 
 // --- Data Actions ---
 
 export async function getBootstrapData(): Promise<AppData | null> {
+    unstable_noStore();
     const session = await auth();
+    console.log("Bootstrap request for:", session?.user?.email || 'No Session');
+    
     if (!session?.user?.id) {
         return null;
     }
@@ -163,6 +176,8 @@ export async function getBootstrapData(): Promise<AppData | null> {
             }
         })
     ]);
+
+    console.log(`Loaded: ${exercises.length} ex, ${workouts.length} wk, ${logs.length} logs`);
 
     return {
         exercises: exercises as unknown as Exercise[],

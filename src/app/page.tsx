@@ -3,19 +3,16 @@
 import Link from 'next/link';
 import { useStorage } from '@/context/StorageContext';
 import ThemeToggle from '@/components/ThemeToggle';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { useEffect, useState } from 'react';
 import { Workout } from '@/types/db';
+import { useSession } from 'next-auth/react';
 
 export default function Home() {
-  const { data, isLoading, logout, refresh } = useStorage();
+  const { data, isLoading, logout } = useStorage();
+  const { data: session } = useSession();
   const [todayWorkout, setTodayWorkout] = useState<Workout | undefined>(undefined);
-
-  // Auto-refresh if data is empty (likely just logged in)
-  useEffect(() => {
-    if (!isLoading && data.workouts.length === 0) {
-      refresh();
-    }
-  }, [data.workouts.length, isLoading]);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   useEffect(() => {
     if (data.workouts.length > 0) {
@@ -37,29 +34,50 @@ export default function Home() {
   
   return (
     <main className="min-h-screen p-6 max-w-md mx-auto bg-background text-foreground pb-24">
-      <header className="mb-12 mt-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-5xl font-black mb-1 tracking-tighter italic uppercase leading-none">LOG</h1>
-          <h1 className="text-4xl font-black mb-3 tracking-tighter text-accent uppercase leading-none italic">ATLAS</h1>
-          <div className="h-1.5 w-12 bg-accent rounded-full mb-6"></div>
+      <header className="mb-12 mt-8">
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-5xl font-black mb-1 tracking-tighter italic uppercase leading-none">LOG</h1>
+            <h1 className="text-4xl font-black mb-3 tracking-tighter text-accent uppercase leading-none italic">ATLAS</h1>
+            <div className="h-1.5 w-12 bg-accent rounded-full"></div>
+          </div>
+          <div className="mt-2">
+            <ThemeToggle />
+          </div>
         </div>
-        <div className="mt-2 flex items-center gap-4">
+        
+        <div className="flex items-end justify-between">
+          <div>
+             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted italic mb-1">Commander Active</p>
+             <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">
+                Welcome, <span className="text-accent">{session?.user?.name || 'Recruit'}</span>!
+             </h2>
+          </div>
           <button 
-            onClick={() => { if(confirm('Logout?')) logout(); }}
-            className="p-2 text-text-muted hover:text-error transition-colors"
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="p-3 bg-card border border-card-border rounded-xl text-text-muted hover:text-error hover:border-error/30 transition-all shadow-sm"
             title="Logout"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
-          <ThemeToggle />
         </div>
       </header>
 
+      <ConfirmationModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
+        title="Logout?"
+        message="You will need to sign in again to access your atlas."
+        confirmText="Logout"
+        variant="danger"
+      />
+
       {/* Today's Workout Section */}
       <section className="mb-12">
-        <h2 className="text-[14px] uppercase tracking-[0.3em] text-text-muted mb-6 font-black italic">Next Session</h2>
+        <h2 className="text-[14px] uppercase tracking-[0.3em] text-text-muted mb-6 font-black italic">Today's Session</h2>
         {todayWorkout ? (
           <div className="bg-card border border-card-border rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">

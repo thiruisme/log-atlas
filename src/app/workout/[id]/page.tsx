@@ -5,6 +5,7 @@ import { useStorage } from '@/context/StorageContext';
 import { ExerciseLog, WorkoutLog } from '@/types/db';
 import ExerciseCard from '@/components/ExerciseCard';
 import WorkoutHeader from '@/components/WorkoutHeader';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { notFound, useRouter } from 'next/navigation';
 
 export default function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,8 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   
   const workout = data.workouts.find(w => w.id === id);
   const [log, setLog] = useState<WorkoutLog | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
 
   useEffect(() => {
     if (workout) {
@@ -46,9 +49,13 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   };
 
   const handleFinish = () => {
-    if(confirm('Finish and save workout?')) {
-        addLog(log);
-        router.push('/');
+    setIsFinishModalOpen(true);
+  };
+
+  const confirmFinish = () => {
+    if (log) {
+      addLog(log);
+      router.push('/');
     }
   };
 
@@ -61,7 +68,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
       <div className="bg-card pt-8 pb-12 px-6 rounded-b-[3rem] border-b border-card-border mb-8 shadow-xl">
            <div className="max-w-md mx-auto relative">
                <button 
-                onClick={() => { if(confirm('Cancel workout? Progress will be lost.')) router.back(); }}
+                onClick={() => setIsCancelModalOpen(true)}
                 className="absolute -top-2 -left-2 p-2 text-text-muted hover:text-foreground transition-colors"
                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -113,6 +120,25 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
           </button>
         </div>
       </div>
+
+      <ConfirmationModal 
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={() => router.back()}
+        title="Cancel Workout?"
+        message="All progress for this session will be lost permanently."
+        confirmText="Yes, Cancel"
+        variant="danger"
+      />
+
+      <ConfirmationModal 
+        isOpen={isFinishModalOpen}
+        onClose={() => setIsFinishModalOpen(false)}
+        onConfirm={confirmFinish}
+        title="Finish Session?"
+        message="Save your results to your atlas history."
+        confirmText="Finish & Save"
+      />
     </main>
   );
 }

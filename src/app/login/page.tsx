@@ -3,6 +3,7 @@
 import { loginAction, registerUser } from '@/actions';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -10,25 +11,44 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setLoading(true);
     setError('');
     
-    if (isRegistering) {
-        const res = await registerUser(formData);
-        if (res?.error) {
-            setError(res.error);
-            setLoading(false);
-            return;
-        }
-        // If success, try logging in
-        const loginRes = await loginAction(formData);
-        if (loginRes?.error) setError(loginRes.error);
-    } else {
-        const res = await loginAction(formData);
-        if (res?.error) setError(res.error);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      if (isRegistering) {
+          const res = await registerUser(formData);
+          if (res?.error) {
+              setError(res.error);
+              setLoading(false);
+              return;
+          }
+      }
+
+      // Use client-side signIn for both login and post-registration login
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password");
+        setLoading(false);
+      } else {
+        // Force a full page load to / to ensure all contexts are clean and session is fresh
+        window.location.href = '/';
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      setError("An unexpected error occurred");
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -43,7 +63,7 @@ export default function LoginPage() {
           </p>
         </header>
 
-        <form action={handleSubmit} className={`space-y-4 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <form onSubmit={handleSubmit} className={`space-y-4 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
           {isRegistering && (
              <div>
                 <input 
@@ -104,13 +124,55 @@ export default function LoginPage() {
 
         <div className="mt-8 text-center">
             <button 
-                onClick={() => setIsRegistering(!isRegistering)}
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError('');
+                }}
                 className="text-xs font-bold text-text-muted uppercase tracking-widest hover:text-accent transition-colors"
             >
                 {isRegistering ? 'Already have an account? Login' : 'New here? Create Account'}
             </button>
         </div>
       </div>
+
+      {/* Loading Modal Overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md transition-opacity duration-300">
+          <div className="bg-card border-2 border-card-border p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center scale-100 transition-transform duration-300">
+            <div className="mb-8 flex justify-center">
+              <div className="relative">
+                {/* Spinning Outer Ring */}
+                <div className="w-24 h-24 border-4 border-accent/10 rounded-full"></div>
+                <div className="absolute top-0 left-0 w-24 h-24 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+                
+                {/* Pulsing Icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-accent animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-3 leading-none text-foreground">
+              {isRegistering ? 'Building' : 'Syncing'}
+            </h2>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-accent leading-none mb-6">
+              Atlas
+            </h2>
+            
+            <div className="flex items-center justify-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+              <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+              <div className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce"></div>
+            </div>
+            
+            <p className="mt-6 text-text-muted font-black uppercase tracking-[0.2em] text-[10px] italic">
+              {isRegistering ? 'Preparing your routine...' : 'Accessing coordinates...'}
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

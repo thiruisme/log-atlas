@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppData, Exercise, Workout, WorkoutLog, ExerciseLog } from '@/types/db';
 import { getBootstrapData, addLogAction, logoutAction, saveExerciseAction, deleteExerciseAction, saveWorkoutAction, deleteWorkoutAction } from '@/actions';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 interface StorageContextType {
   data: AppData;
@@ -28,12 +29,14 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const load = async () => {
-    setIsLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const serverData = await getBootstrapData();
       if (serverData) {
           setData(serverData);
+      } else {
+          setData({ exercises: [], workouts: [], logs: [] });
       }
     } catch (e) {
       console.error("Failed to load user data", e);
@@ -47,7 +50,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = async () => {
-      await load();
+      await load(true); // Silent refresh
   };
 
   const addLog = async (log: WorkoutLog) => {
@@ -104,8 +107,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-      await logoutAction();
-      router.push('/login'); 
+      setData({ exercises: [], workouts: [], logs: [] });
+      await signOut({ callbackUrl: '/login' });
   };
 
   return (
