@@ -42,7 +42,7 @@ export default function ConfirmationModal({
         <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2 leading-none text-foreground">
           {title}
         </h2>
-        <p className="text-text-secondary font-bold uppercase italic text-[10px] tracking-widest mb-8 leading-relaxed px-4">
+        <p className="text-text-secondary font-medium italic text-[14px] mb-8 px-4">
           {message}
         </p>
 
@@ -54,7 +54,7 @@ export default function ConfirmationModal({
             }}
             className={`w-full py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter transition-all hover:scale-[1.02] active:scale-[0.98] ${
               variant === 'danger' 
-                ? 'bg-error text-white shadow-lg shadow-error/20' 
+                ? 'bg-error text-black shadow-lg shadow-error/20' 
                 : 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
             }`}
           >

@@ -48,8 +48,8 @@ export default function Home() {
         
         <div className="flex items-end justify-between">
           <div>
-             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted italic mb-1">Commander Active</p>
-             <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">
+             <p className="text-[14px] uppercase text-text-muted font-black italic">Commander Active</p>
+             <h2 className="text-2xl font-black italic uppercase leading-none">
                 Welcome, <span className="text-accent">{session?.user?.name || 'Recruit'}</span>!
              </h2>
           </div>
