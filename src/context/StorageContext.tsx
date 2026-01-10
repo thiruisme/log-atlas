@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 interface StorageContextType {
   data: AppData;
   isLoading: boolean;
+  refresh: () => Promise<void>;
   addLog: (log: WorkoutLog) => void;
   getHistoryForExercise: (exerciseId: string) => ExerciseLog[];
   logout: () => void;
@@ -27,21 +28,27 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const serverData = await getBootstrapData();
-        if (serverData) {
-            setData(serverData);
-        }
-      } catch (e) {
-        console.error("Failed to load user data", e);
-      } finally {
-        setIsLoading(false);
+  const load = async () => {
+    setIsLoading(true);
+    try {
+      const serverData = await getBootstrapData();
+      if (serverData) {
+          setData(serverData);
       }
+    } catch (e) {
+      console.error("Failed to load user data", e);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     load();
   }, []);
+
+  const refresh = async () => {
+      await load();
+  };
 
   const addLog = async (log: WorkoutLog) => {
     // Optimistic
@@ -105,6 +112,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     <StorageContext.Provider value={{
       data,
       isLoading,
+      refresh,
       addLog,
       getHistoryForExercise,
       logout,

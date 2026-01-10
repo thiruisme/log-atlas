@@ -43,14 +43,15 @@ export default function LoginPage() {
           </p>
         </header>
 
-        <form action={handleSubmit} className="space-y-4">
+        <form action={handleSubmit} className={`space-y-4 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
           {isRegistering && (
              <div>
                 <input 
                   name="name" 
                   type="text" 
+                  disabled={loading}
                   placeholder="NAME (OPTIONAL)" 
-                  className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none"
+                  className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none disabled:opacity-50"
                 />
              </div>
           )}
@@ -59,8 +60,9 @@ export default function LoginPage() {
               name="email" 
               type="email" 
               required 
+              disabled={loading}
               placeholder="EMAIL" 
-              className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none"
+              className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none disabled:opacity-50"
             />
           </div>
           <div>
@@ -68,8 +70,9 @@ export default function LoginPage() {
               name="password" 
               type="password" 
               required 
+              disabled={loading}
               placeholder="PASSWORD" 
-              className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none"
+              className="w-full bg-card border border-card-border p-4 rounded-xl font-bold uppercase tracking-wider focus:border-accent outline-none disabled:opacity-50"
             />
           </div>
 
@@ -82,9 +85,14 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-accent text-accent-foreground p-4 rounded-xl font-black text-xl uppercase italic tracking-tighter hover:opacity-90 disabled:opacity-50 transition-all mt-4"
+            className="relative w-full bg-accent text-accent-foreground p-4 rounded-xl font-black text-xl uppercase italic tracking-tighter hover:opacity-90 disabled:opacity-50 transition-all mt-4 flex items-center justify-center overflow-hidden"
           >
-            {loading ? 'Processing...' : (isRegistering ? 'Join Atlas' : 'Enter Gym')}
+            {loading && (
+                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+            )}
+            <span className={loading ? 'animate-bounce' : ''}>
+                {loading ? 'SYNCING WITH ATLAS...' : (isRegistering ? 'Join Atlas' : 'Enter Gym')}
+            </span>
           </button>
         </form>
 

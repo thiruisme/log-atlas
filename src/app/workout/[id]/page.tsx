@@ -59,10 +59,20 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
           For speed, I'll inline the header style matching the dashboard.
       */}
       <div className="bg-card pt-8 pb-12 px-6 rounded-b-[3rem] border-b border-card-border mb-8 shadow-xl">
-           <div className="max-w-md mx-auto">
-               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent block mb-2">{workout.day}</span>
-               <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none mb-2">{workout.title}</h1>
-               <p className="text-text-secondary font-bold uppercase italic text-sm">{workout.focus}</p>
+           <div className="max-w-md mx-auto relative">
+               <button 
+                onClick={() => { if(confirm('Cancel workout? Progress will be lost.')) router.back(); }}
+                className="absolute -top-2 -left-2 p-2 text-text-muted hover:text-foreground transition-colors"
+               >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                  </svg>
+               </button>
+               <div className="pl-8">
+                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent block mb-2">{workout.day}</span>
+                 <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none mb-2">{workout.title}</h1>
+                 <p className="text-text-secondary font-bold uppercase italic text-sm">{workout.focus}</p>
+               </div>
            </div>
       </div>
 

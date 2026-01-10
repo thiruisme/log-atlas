@@ -7,8 +7,15 @@ import { useEffect, useState } from 'react';
 import { Workout } from '@/types/db';
 
 export default function Home() {
-  const { data, isLoading } = useStorage();
+  const { data, isLoading, logout, refresh } = useStorage();
   const [todayWorkout, setTodayWorkout] = useState<Workout | undefined>(undefined);
+
+  // Auto-refresh if data is empty (likely just logged in)
+  useEffect(() => {
+    if (!isLoading && data.workouts.length === 0) {
+      refresh();
+    }
+  }, [data.workouts.length, isLoading]);
 
   useEffect(() => {
     if (data.workouts.length > 0) {
@@ -36,7 +43,16 @@ export default function Home() {
           <h1 className="text-4xl font-black mb-3 tracking-tighter text-accent uppercase leading-none italic">ATLAS</h1>
           <div className="h-1.5 w-12 bg-accent rounded-full mb-6"></div>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-4">
+          <button 
+            onClick={() => { if(confirm('Logout?')) logout(); }}
+            className="p-2 text-text-muted hover:text-error transition-colors"
+            title="Logout"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
           <ThemeToggle />
         </div>
       </header>
