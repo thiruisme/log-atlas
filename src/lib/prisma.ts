@@ -17,7 +17,8 @@ if (url.startsWith('file:./') || url.startsWith('file:.\\')) {
 console.log("PrismaLibSql URL:", url);
 
 const adapter = new PrismaLibSql({
-  url
+  url,
+  authToken: process.env.TURSO_AUTH_TOKEN
 })
 
 export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter })
