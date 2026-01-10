@@ -3,11 +3,11 @@ import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { compare } from "bcryptjs"
-import type { User } from "@prisma/client"
+import { authConfig } from "./auth.config"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" }, // We use JWT because Credentials provider requires it
   providers: [
     Credentials({
       credentials: {
@@ -27,9 +27,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (!user) {
-          // No user found, so we check if this is a registration attempt or just fail.
-          // For simplicity in this "local-first" shift, we will fail login.
-          // Registration will be a separate Server Action.
           return null;
         }
 
@@ -43,21 +40,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-        if (user) {
-            token.id = user.id;
-        }
-        return token;
-    },
-    async session({ session, token }) {
-        if (session.user && token.id) {
-            session.user.id = token.id as string;
-        }
-        return session;
-    }
-  }
 })
