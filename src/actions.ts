@@ -205,3 +205,141 @@ export async function addLogAction(log: WorkoutLog) {
 
     revalidatePath('/');
 }
+
+// --- CRUD Actions ---
+
+export async function saveExerciseAction(exercise: Exercise) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    
+    // Check if ID exists (update vs create)
+    // Note: The UI generates UUIDs for new items, so we check if it exists in DB.
+    // However, Prisma Create vs Update is distinct. 
+    // We can use upsert or just check. 
+    // For simplicity with client-generated IDs, we'll try to find it first or use upsert.
+    
+    // We need to handle the "user" connection for new items.
+    
+    const existing = await prisma.exercise.findUnique({ 
+        where: { id: exercise.id } 
+    });
+
+    if (existing) {
+        if(existing.userId !== session.user.id) throw new Error("Unauthorized access");
+        await prisma.exercise.update({
+            where: { id: exercise.id },
+            data: {
+                name: exercise.name,
+                targetMuscle: exercise.targetMuscle || 'Other',
+                equipment: exercise.equipment || 'Other',
+                defaultSets: exercise.defaultSets,
+                defaultReps: exercise.defaultReps,
+                defaultRest: exercise.defaultRest,
+                notes: exercise.notes,
+                videoUrl: exercise.videoUrl
+            }
+        });
+    } else {
+        await prisma.exercise.create({
+            data: {
+                id: exercise.id,
+                userId: session.user.id,
+                name: exercise.name,
+                targetMuscle: exercise.targetMuscle || 'Other',
+                equipment: exercise.equipment || 'Other',
+                defaultSets: exercise.defaultSets,
+                defaultReps: exercise.defaultReps,
+                defaultRest: exercise.defaultRest,
+                notes: exercise.notes,
+                videoUrl: exercise.videoUrl
+            }
+        });
+    }
+    revalidatePath('/');
+}
+
+export async function deleteExerciseAction(id: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    
+    // Ensure ownership
+    const existing = await prisma.exercise.findUnique({ where: { id } });
+    if(existing && existing.userId === session.user.id) {
+        await prisma.exercise.delete({ where: { id } });
+    }
+    revalidatePath('/');
+}
+
+export async function saveWorkoutAction(workout: Workout) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    const existing = await prisma.workout.findUnique({ where: { id: workout.id } });
+
+    if (existing) {
+        if(existing.userId !== session.user.id) throw new Error("Unauthorized access");
+        
+        // Update basic info
+        await prisma.workout.update({
+            where: { id: workout.id },
+            data: {
+                title: workout.title,
+                day: workout.day,
+                focus: workout.focus,
+            }
+        });
+        
+        // Re-create exercises (simplest way to handle reordering/changes)
+        await prisma.workoutExercise.deleteMany({ where: { workoutId: workout.id } });
+        
+        for (const ex of workout.exercises) {
+            await prisma.workoutExercise.create({
+                data: {
+                    workoutId: workout.id,
+                    exerciseId: ex.exerciseId,
+                    order: ex.order,
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    rest: ex.rest
+                }
+            });
+        }
+        
+    } else {
+        const created = await prisma.workout.create({
+            data: {
+                id: workout.id,
+                userId: session.user.id,
+                title: workout.title,
+                day: workout.day,
+                focus: workout.focus,
+            }
+        });
+        
+        for (const ex of workout.exercises) {
+            await prisma.workoutExercise.create({
+                data: {
+                    workoutId: created.id,
+                    exerciseId: ex.exerciseId,
+                    order: ex.order,
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    rest: ex.rest
+                }
+            });
+        }
+    }
+    revalidatePath('/');
+}
+
+export async function deleteWorkoutAction(id: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    
+    const existing = await prisma.workout.findUnique({ where: { id } });
+    if(existing && existing.userId === session.user.id) {
+        await prisma.workout.delete({ where: { id } });
+    }
+    revalidatePath('/');
+}
+
