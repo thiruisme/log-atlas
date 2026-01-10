@@ -1,10 +1,19 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
-const url = process.env.DATABASE_URL || `file:${join(process.cwd(), 'dev.db')}`;
+// Ensure we have a valid absolute URL for the database
+const dbPath = join(process.cwd(), 'dev.db');
+let url = process.env.DATABASE_URL || pathToFileURL(dbPath).toString();
+
+if (url.startsWith('file:./') || url.startsWith('file:.\\')) {
+    // Convert relative file URL from .env to absolute
+    url = pathToFileURL(dbPath).toString();
+}
+
 console.log("PrismaLibSql URL:", url);
 
 const adapter = new PrismaLibSql({
