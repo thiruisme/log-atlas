@@ -16,6 +16,7 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
   const startY = useRef<number | null>(null);
   const lastY = useRef<number | null>(null);
   const isDragging = useRef(false);
+  const openTimeRef = useRef<number>(0); // Timestamp when opened to prevent ghost clicks
   const [tempValue, setTempValue] = useState(value); // For optimistic UI during drag
 
   const popupRef = useRef<HTMLDivElement>(null);
@@ -94,6 +95,9 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
     if (!isDragging.current && startY.current !== null) {
         // Was a tap
         setIsOpen(true);
+        openTimeRef.current = Date.now();
+        // Prevent default to stop compatibility mouse events (click)
+        e.preventDefault();
     }
     startY.current = null;
     lastY.current = null;
@@ -131,6 +135,7 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onWheel={handleWheel}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} // Swallow compatibility clicks
         >
             <span className="text-xl font-bold font-mono tracking-tighter">
                 {value === 0 ? '-' : value}
@@ -148,10 +153,20 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
 
         {/* Popup Overlay */}
         {isOpen && (
-            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsOpen(false)}>
+            <div 
+                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200" 
+                onPointerDown={(e) => {
+                     // We use onPointerDown for the backdrop to catch the interaction earlier than onClick
+                     // But we must check if it's the backdrop itself, not a child
+                     if (e.target === e.currentTarget) {
+                         if (Date.now() - openTimeRef.current < 400) return;
+                         setIsOpen(false);
+                     }
+                }}
+            >
                 <div 
                     className="bg-card w-full max-w-sm max-h-[60vh] rounded-[2rem] border border-card-border shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300 sm:zoom-in-95" 
-                    onClick={e => e.stopPropagation()} // Prevent close on inner click
+                    onPointerDown={e => e.stopPropagation()} // Prevent close on inner click
                 >
                     <div className="p-4 border-b border-card-border bg-card flex justify-between items-center">
                          <span className="text-sm font-black uppercase tracking-widest text-text-muted italic">{title}</span>
@@ -168,7 +183,15 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
                         {options.map(opt => (
                             <button
                                 key={opt}
-                                onClick={() => { onChange(opt); setIsOpen(false); }}
+                                onClick={(e) => { 
+                                    if (Date.now() - openTimeRef.current < 500) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
+                                    onChange(opt); 
+                                    setIsOpen(false); 
+                                }}
                                 className={`w-full p-4 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${opt === value ? 'bg-accent text-accent-foreground shadow-lg scale-[1.02]' : 'hover:bg-card-border/50 text-text-secondary'}`}
                             >
                                 {opt === 0 ? 'None' : opt}
@@ -182,4 +205,3 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
     </>
   );
 }
-
