@@ -15,15 +15,9 @@ interface ExerciseCardProps {
 
 function getWeightOptions(equipment: EquipmentType = 'Other'): number[] {
   const options: number[] = [];
-  
-  if (equipment === 'Dumbbell') {
-    for (let i = 1; i <= 10; i++) options.push(i);
-    for (let i = 12; i <= 60; i += 2) options.push(i);
-  } else if (equipment === 'Barbell') {
-    for (let i = 20; i <= 300; i += 2.5) options.push(i);
-  } else {
-    const start = equipment === 'Bodyweight' ? 0 : 5;
-    for (let i = start; i <= 200; i += 5) options.push(i);
+  // Standardized increments of 2.5kg for all equipment as requested
+  for (let i = 0; i <= 300; i += 2.5) {
+      options.push(i);
   }
   return options;
 }

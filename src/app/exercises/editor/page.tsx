@@ -5,6 +5,7 @@ import { Exercise, MuscleGroup } from '@/types/db';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core', 'Cardio', 'Other'];
 const EQUIPMENT_TYPES = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other'];
@@ -16,6 +17,7 @@ function ExerciseEditorContent() {
   
   const editId = searchParams.get('id');
   const isEditing = !!editId;
+  const storageKey = `exercise_editor_draft_${editId || 'new'}`;
 
   const [form, setForm] = useState<Exercise>({
     id: crypto.randomUUID(),
@@ -29,14 +31,69 @@ function ExerciseEditorContent() {
     videoUrl: ''
   });
 
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [draftForm, setDraftForm] = useState<Exercise | null>(null);
+
   useEffect(() => {
+    // 1. Initial State
+    let initialForm: Exercise = {
+        id: crypto.randomUUID(),
+        name: '',
+        targetMuscle: 'Other',
+        equipment: 'Other',
+        defaultSets: 3,
+        defaultReps: '10',
+        defaultRest: '90s',
+        notes: '',
+        videoUrl: ''
+    };
+
     if (isEditing && data.exercises.length > 0) {
       const existing = data.exercises.find(e => e.id === editId);
       if (existing) {
-        setForm(existing);
+        initialForm = existing;
       }
     }
-  }, [editId, data.exercises, isEditing]);
+
+    // 2. Check Draft
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            setDraftForm(parsed);
+            setForm(initialForm);
+            setIsRestoreModalOpen(true);
+        } catch {
+            setForm(initialForm);
+        }
+    } else {
+        setForm(initialForm);
+    }
+  }, [editId, data.exercises, isEditing, storageKey]);
+
+  // Autosave
+  useEffect(() => {
+      if (form.name && !isRestoreModalOpen) {
+          localStorage.setItem(storageKey, JSON.stringify(form));
+      }
+  }, [form, isRestoreModalOpen, storageKey]);
+
+  const handleRestore = () => {
+      if (draftForm) {
+          setForm(draftForm);
+          setIsRestoreModalOpen(false);
+      }
+  };
+
+  const handleDiscardRestore = () => {
+      localStorage.removeItem(storageKey);
+      setIsRestoreModalOpen(false);
+  };
+
+  const handleCancel = () => {
+      localStorage.removeItem(storageKey);
+      router.back();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,13 +104,14 @@ function ExerciseEditorContent() {
     } else {
       addExercise({ ...form, id: crypto.randomUUID() });
     }
+    localStorage.removeItem(storageKey);
     router.back();
   };
 
   return (
     <main className="min-h-screen p-6 max-w-md mx-auto bg-background text-foreground">
       <header className="mb-8 flex items-center justify-between">
-        <button onClick={() => router.back()} className="p-2 -ml-2 text-text-muted hover:text-foreground">
+        <button onClick={handleCancel} className="p-2 -ml-2 text-text-muted hover:text-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
@@ -159,6 +217,16 @@ function ExerciseEditorContent() {
           </button>
         </div>
       </form>
+
+      <ConfirmationModal 
+        isOpen={isRestoreModalOpen}
+        onClose={handleDiscardRestore}
+        onConfirm={handleRestore}
+        title="Resume Editing?"
+        message="You have unsaved changes from a previous session."
+        confirmText="Resume"
+        cancelText="Discard"
+      />
     </main>
   );
 }

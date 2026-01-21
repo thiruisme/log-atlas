@@ -15,12 +15,14 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   
   const workout = data.workouts.find(w => w.id === id);
   const [log, setLog] = useState<WorkoutLog | null>(null);
+  const [draftLog, setDraftLog] = useState<WorkoutLog | null>(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
 
   useEffect(() => {
     if (workout) {
-      // Initialize draft log
+      // Initialize default log
       const initialLog: WorkoutLog = {
         id: crypto.randomUUID(),
         workoutId: workout.id,
@@ -31,9 +33,30 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
           sets: Array(ex.sets).fill({ weight: 0, reps: 0, completed: false })
         }))
       };
-      setLog(initialLog);
+
+      // Check for saved draft
+      const saved = localStorage.getItem(`workout_draft_${id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setDraftLog(parsed);
+          setLog(initialLog); // Show default in background
+          setIsRestoreModalOpen(true);
+        } catch (e) {
+          setLog(initialLog);
+        }
+      } else {
+        setLog(initialLog);
+      }
     }
-  }, [workout]);
+  }, [workout, id]);
+
+  // Autosave effect
+  useEffect(() => {
+    if (log && !isRestoreModalOpen) {
+      localStorage.setItem(`workout_draft_${id}`, JSON.stringify(log));
+    }
+  }, [log, isRestoreModalOpen, id]);
 
   if (!workout) return <div className="p-6">Loading...</div>; // Or notFound() if fully loaded and missing
   if (!log) return <div className="p-6">Preparing Session...</div>;
@@ -48,15 +71,33 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
     });
   };
 
+  const handleRestore = () => {
+    if (draftLog) {
+      setLog(draftLog);
+      setIsRestoreModalOpen(false);
+    }
+  };
+
+  const handleDiscardRestore = () => {
+    localStorage.removeItem(`workout_draft_${id}`);
+    setIsRestoreModalOpen(false);
+  };
+
   const handleFinish = () => {
     setIsFinishModalOpen(true);
   };
 
   const confirmFinish = () => {
     if (log) {
+      localStorage.removeItem(`workout_draft_${id}`);
       addLog(log);
       router.push('/');
     }
+  };
+  
+  const confirmCancel = () => {
+      localStorage.removeItem(`workout_draft_${id}`);
+      router.back();
   };
 
   return (
@@ -124,7 +165,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
       <ConfirmationModal 
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
-        onConfirm={() => router.back()}
+        onConfirm={confirmCancel}
         title="Cancel Workout?"
         message="All progress for this session will be lost permanently."
         confirmText="Yes, Cancel"
@@ -139,6 +180,26 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
         message="Save your results to your atlas history."
         confirmText="Finish & Save"
       />
+
+      <ConfirmationModal 
+        isOpen={isRestoreModalOpen}
+        onClose={handleDiscardRestore} 
+        onConfirm={handleRestore}
+        title="Resume Session?"
+        message="We found an unsaved session. Do you want to pick up where you left off?"
+        confirmText="Resume"
+        cancelText="Start New"
+      />
+      
+      {/* Custom override for the Restore Modal cancellation to call handleDiscardRestore */}
+      {isRestoreModalOpen && (
+        <div className="hidden">
+           {/* This is a hacky way to intercept. Better to just modify the Modal use or add a prop. 
+               Let's just use the props correctly. The Modal component has cancelText but the onClick for cancel is onClose.
+               We can wrap the ConfirmationModal to specific restore behavior or just use it.
+           */}
+        </div>
+      )}
     </main>
   );
 }

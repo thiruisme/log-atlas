@@ -5,6 +5,7 @@ import { Workout, WorkoutExercise } from '@/types/db';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Flexible'];
 
@@ -15,6 +16,7 @@ function WorkoutEditorContent() {
   
   const editId = searchParams.get('id');
   const isEditing = !!editId;
+  const storageKey = `workout_editor_draft_${editId || 'new'}`;
 
   // Local state for the workout being edited
   const [form, setForm] = useState<Workout>({
@@ -27,15 +29,60 @@ function WorkoutEditorContent() {
 
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState('');
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [draftForm, setDraftForm] = useState<Workout | null>(null);
 
   useEffect(() => {
+    // 1. Load initial data (if editing)
+    let initialForm: Workout = {
+        id: crypto.randomUUID(),
+        title: '',
+        day: 'Monday',
+        focus: '',
+        exercises: []
+    };
+
     if (isEditing && data.workouts.length > 0) {
       const existing = data.workouts.find(w => w.id === editId);
       if (existing) {
-        setForm(existing);
+        initialForm = existing;
       }
     }
-  }, [editId, data.workouts, isEditing]);
+    
+    // 2. Check for draft
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            setDraftForm(parsed);
+            setForm(initialForm); // Show underlying data
+            setIsRestoreModalOpen(true);
+        } catch (e) {
+            setForm(initialForm);
+        }
+    } else {
+        setForm(initialForm);
+    }
+  }, [editId, data.workouts, isEditing, storageKey]);
+
+  // Autosave
+  useEffect(() => {
+      if (form.title && !isRestoreModalOpen) {
+          localStorage.setItem(storageKey, JSON.stringify(form));
+      }
+  }, [form, isRestoreModalOpen, storageKey]);
+
+  const handleRestore = () => {
+      if (draftForm) {
+          setForm(draftForm);
+          setIsRestoreModalOpen(false);
+      }
+  };
+
+  const handleDiscardRestore = () => {
+      localStorage.removeItem(storageKey);
+      setIsRestoreModalOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +93,13 @@ function WorkoutEditorContent() {
     } else {
       addWorkout({ ...form, id: crypto.randomUUID() });
     }
+    localStorage.removeItem(storageKey);
     router.back();
+  };
+  
+  const handleCancel = () => {
+      localStorage.removeItem(storageKey);
+      router.back();
   };
 
   const addExerciseToWorkout = (exerciseId: string) => {
@@ -106,7 +159,7 @@ function WorkoutEditorContent() {
     <main className="min-h-screen p-6 max-w-md mx-auto bg-background text-foreground pb-32">
        {/* Header */}
       <header className="mb-6 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-20 py-2">
-        <button onClick={() => router.back()} className="p-2 -ml-2 text-text-muted hover:text-foreground">
+        <button onClick={handleCancel} className="p-2 -ml-2 text-text-muted hover:text-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
@@ -201,6 +254,17 @@ function WorkoutEditorContent() {
                  )}
             </div>
         </div>
+
+        <ConfirmationModal 
+            isOpen={isRestoreModalOpen}
+            onClose={handleDiscardRestore}
+            onConfirm={handleRestore}
+            title="Resume Editing?"
+            message="You have unsaved changes from a previous session."
+            confirmText="Resume"
+            cancelText="Discard"
+        />
+
       </div>
 
       {/* Add Exercise Modal / Overlay */}
