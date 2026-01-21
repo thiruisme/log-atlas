@@ -54,9 +54,20 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addLog = async (log: WorkoutLog) => {
-    // Optimistic
+    // 1. Snapshot previous state for rollback
+    const previousData = data;
+    
+    // 2. Optimistic Update
     setData(prev => ({ ...prev, logs: [log, ...prev.logs] }));
-    try { await addLogAction(log); } catch (e) { console.error(e); }
+    
+    try { 
+        await addLogAction(log); 
+    } catch (e) { 
+        console.error("Add Log Failed", e);
+        // 3. Rollback on failure
+        setData(previousData);
+        throw e; // Re-throw to let the UI know
+    }
   };
 
   const addExercise = async (exercise: Exercise) => {

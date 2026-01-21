@@ -9,9 +9,10 @@ interface ScrollPickerProps {
   suffix?: string;
   disabled?: boolean;
   title?: string;
+  precision?: number;
 }
 
-export default function ScrollPicker({ value, options, onChange, suffix, disabled, title = "Select Value" }: ScrollPickerProps) {
+export default function ScrollPicker({ value, options, onChange, suffix, disabled, title = "Select Value", precision }: ScrollPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const startY = useRef<number | null>(null);
   const lastY = useRef<number | null>(null);
@@ -20,6 +21,11 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
   const [tempValue, setTempValue] = useState(value); // For optimistic UI during drag
 
   const popupRef = useRef<HTMLDivElement>(null);
+
+  const formatValue = (val: number) => {
+      if (val === 0) return '-';
+      return precision !== undefined ? val.toFixed(precision) : val.toString();
+  };
 
   // Sync temp value
   useEffect(() => {
@@ -138,7 +144,7 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} // Swallow compatibility clicks
         >
             <span className="text-xl font-bold font-mono tracking-tighter">
-                {value === 0 ? '-' : value}
+                {formatValue(value)}
             </span>
             {suffix && value !== 0 && (
                 <span className="text-[10px] text-text-muted font-bold ml-1 mt-1">{suffix}</span>
@@ -194,7 +200,7 @@ export default function ScrollPicker({ value, options, onChange, suffix, disable
                                 }}
                                 className={`w-full p-4 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${opt === value ? 'bg-accent text-accent-foreground shadow-lg scale-[1.02]' : 'hover:bg-card-border/50 text-text-secondary'}`}
                             >
-                                {opt === 0 ? 'None' : opt}
+                                {formatValue(opt)}
                                 {opt !== 0 && suffix && <span className="text-xs ml-1 opacity-70 font-normal">{suffix}</span>}
                             </button>
                         ))}

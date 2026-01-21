@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useStorage } from '@/context/StorageContext';
 import { useState } from 'react';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 export default function ExercisesPage() {
   const { data, deleteExercise } = useStorage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filteredExercises = data.exercises.filter(e => 
     e.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -25,17 +27,27 @@ export default function ExercisesPage() {
         <div className="w-6"></div> {/* Spacer */}
       </header>
 
-      <div className="mb-6">
+      <div className="mb-6 relative group">
         <input 
           type="text" 
           placeholder="SEARCH EXERCISES..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-card border border-card-border p-4 rounded-xl text-lg font-bold uppercase tracking-wide focus:outline-none focus:border-accent placeholder:text-text-muted/50"
+          className="w-full bg-card border border-card-border p-4 pr-12 rounded-xl text-lg font-bold uppercase tracking-wide focus:outline-none focus:border-accent placeholder:text-text-muted/50"
         />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-foreground transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      <div className="space-y-4 mb-20">
+      <div className="space-y-4 pb-32">
         {filteredExercises.map(exercise => (
            <div key={exercise.id} className="bg-card border border-card-border p-5 rounded-2xl flex items-center justify-between group">
               <div>
@@ -51,9 +63,7 @@ export default function ExercisesPage() {
                     </svg>
                  </Link>
                  <button 
-                  onClick={() => {
-                      if(confirm('Delete this exercise?')) deleteExercise(exercise.id);
-                  }}
+                  onClick={() => setDeleteId(exercise.id)}
                   className="p-2 text-text-muted hover:text-error transition-colors"
                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,6 +89,18 @@ export default function ExercisesPage() {
           + Add New Exercise
         </Link>
       </div>
+
+      <ConfirmationModal 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => {
+            if (deleteId) deleteExercise(deleteId);
+        }}
+        title="Delete Exercise?"
+        message="This will remove the exercise from your library. Past logs will be preserved."
+        confirmText="Delete"
+        variant="danger"
+      />
     </main>
   );
 }

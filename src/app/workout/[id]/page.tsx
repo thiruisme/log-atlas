@@ -11,7 +11,7 @@ import { notFound, useRouter } from 'next/navigation';
 export default function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { data, addLog, getHistoryForExercise } = useStorage();
+  const { data, addLog, getHistoryForExercise, isLoading } = useStorage();
   
   const workout = data.workouts.find(w => w.id === id);
   const [log, setLog] = useState<WorkoutLog | null>(null);
@@ -19,6 +19,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (workout) {
@@ -58,8 +59,21 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
     }
   }, [log, isRestoreModalOpen, id]);
 
-  if (!workout) return <div className="p-6">Loading...</div>; // Or notFound() if fully loaded and missing
-  if (!log) return <div className="p-6">Preparing Session...</div>;
+  if (isLoading) return <div className="p-6 text-center animate-pulse font-black italic text-text-muted">LOADING SESSION...</div>;
+  
+  if (!workout) {
+      return (
+        <main className="min-h-screen p-6 flex flex-col items-center justify-center text-center">
+            <h1 className="text-3xl font-black italic uppercase mb-4">Workout Not Found</h1>
+            <p className="text-text-muted mb-8">This session template may have been deleted.</p>
+            <button onClick={() => router.push('/')} className="bg-accent text-accent-foreground px-8 py-4 rounded-2xl font-black uppercase italic shadow-lg">
+                Return to Base
+            </button>
+        </main>
+      );
+  }
+
+  if (!log) return <div className="p-6 text-center font-black italic text-text-muted">PREPARING SESSION...</div>;
 
   const handleUpdateExerciseLog = (exerciseId: string, updatedExLog: ExerciseLog) => {
     setLog(prev => {
@@ -87,11 +101,18 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
     setIsFinishModalOpen(true);
   };
 
-  const confirmFinish = () => {
+  const confirmFinish = async () => {
     if (log) {
-      localStorage.removeItem(`workout_draft_${id}`);
-      addLog(log);
-      router.push('/');
+      setIsSaving(true);
+      try {
+          await addLog(log);
+          // Only clear draft if server save was successful
+          localStorage.removeItem(`workout_draft_${id}`);
+          router.push('/');
+      } catch (error) {
+          alert("Failed to save workout. Please check your internet connection and try again.");
+          setIsSaving(false); // Re-enable button
+      }
     }
   };
   
@@ -174,11 +195,11 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
 
       <ConfirmationModal 
         isOpen={isFinishModalOpen}
-        onClose={() => setIsFinishModalOpen(false)}
+        onClose={() => !isSaving && setIsFinishModalOpen(false)} // Prevent closing while saving
         onConfirm={confirmFinish}
         title="Finish Session?"
         message="Save your results to your atlas history."
-        confirmText="Finish & Save"
+        confirmText={isSaving ? "Saving..." : "Finish & Save"}
       />
 
       <ConfirmationModal 

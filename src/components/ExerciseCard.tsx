@@ -169,6 +169,7 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
                                   suffix="KG"
                                   disabled={setLog.completed}
                                   title="Select Weight"
+                                  precision={1}
                                />
                            </div>
 

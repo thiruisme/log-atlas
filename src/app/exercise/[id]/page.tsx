@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from 'react';
 import { useStorage } from '@/context/StorageContext';
 import { Exercise } from '@/types/db';
-import { notFound, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function ExercisePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -18,12 +19,42 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
     }
   }, [id, data.exercises, isLoading]);
 
-  if (isLoading) return null;
-  if (!exercise) return notFound();
+  if (isLoading) {
+      return (
+        <main className="min-h-screen max-w-md mx-auto bg-background text-foreground flex items-center justify-center">
+            <div className="animate-pulse font-black italic text-text-muted">LOADING DATA...</div>
+        </main>
+      );
+  }
+
+  // Fallback / Standard Template for missing ID
+  if (!exercise) {
+      return (
+        <main className="min-h-screen max-w-md mx-auto bg-background text-foreground pb-12">
+            <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-card-border p-4">
+                <button 
+                    onClick={() => router.back()}
+                    className="p-2 -ml-2 text-text-muted hover:text-accent transition-colors"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </header>
+            <div className="p-8 text-center">
+                <h2 className="text-3xl font-black italic uppercase mb-4">Exercise Not Found</h2>
+                <p className="text-text-muted mb-8">This exercise might have been deleted or does not exist.</p>
+                <button onClick={() => router.back()} className="bg-accent text-accent-foreground px-6 py-3 rounded-xl font-black uppercase italic">
+                    Go Back
+                </button>
+            </div>
+        </main>
+      );
+  }
 
   return (
     <main className="min-h-screen max-w-md mx-auto bg-background text-foreground pb-12">
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-card-border p-4">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-card-border p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => router.back()}
@@ -35,6 +66,9 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
           </button>
           <h1 className="text-xl font-bold tracking-tight uppercase tracking-widest text-[10px] text-text-muted font-black">Reference Guide</h1>
         </div>
+        <Link href={`/exercises/editor?id=${exercise.id}`} className="text-xs font-black text-accent uppercase tracking-wider hover:underline">
+            Edit
+        </Link>
       </header>
 
       <div className="p-6">
