@@ -12,11 +12,8 @@ export default function ThemeToggle() {
       (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
     
     setIsDark(isDarkInitial);
-    if (isDarkInitial) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', isDarkInitial);
+    document.documentElement.classList.toggle('light', !isDarkInitial);
   }, []);
 
   const toggleTheme = () => {
@@ -25,13 +22,8 @@ export default function ThemeToggle() {
     const themeStr = newDark ? 'dark' : 'light';
     localStorage.setItem('log-atlas-theme', themeStr);
     
-    if (newDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
+    document.documentElement.classList.toggle('dark', newDark);
+    document.documentElement.classList.toggle('light', !newDark);
   };
 
   return (
