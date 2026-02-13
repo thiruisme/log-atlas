@@ -86,6 +86,7 @@ model WorkoutLog {
 
   @@index([userId])
   @@index([workoutId])
+  @@index([userId, date])
 }
 
 model ExerciseLog {

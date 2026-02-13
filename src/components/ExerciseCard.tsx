@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Exercise, WorkoutExercise, ExerciseLog, EquipmentType } from '@/types/db';
 import ScrollPicker from './ScrollPicker';
+import ProgressModal from './ProgressModal';
 
 interface ExerciseCardProps {
   exerciseDef: Exercise;
   target: WorkoutExercise;
   log: ExerciseLog;
   previousLog?: ExerciseLog;
+  history: { date: string; log: ExerciseLog }[];
   onUpdateLog: (log: ExerciseLog) => void;
 }
 
@@ -29,9 +31,10 @@ function getRepsOptions(): number[] {
     return opts;
 }
 
-export default function ExerciseCard({ exerciseDef, target, log, previousLog, onUpdateLog }: ExerciseCardProps) {
+export default function ExerciseCard({ exerciseDef, target, log, previousLog, history, onUpdateLog }: ExerciseCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [timer, setTimer] = useState<number | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
 
   // Generate options once based on equipment
   const weightOptions = useMemo(() => getWeightOptions(exerciseDef.equipment), [exerciseDef.equipment]);
@@ -200,8 +203,17 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
                })}
            </div>
 
-           {/* Reference Link */}
-           <div className="mt-4 pt-4 border-t border-card-border flex justify-end">
+           {/* Footer Links */}
+           <div className="mt-4 pt-4 border-t border-card-border flex justify-between items-center">
+               <button
+                 onClick={() => setShowProgress(true)}
+                 className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-accent flex items-center gap-1"
+               >
+                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                   </svg>
+                   Progress
+               </button>
                <Link href={`/exercise/${exerciseDef.id}`} className="text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-accent flex items-center gap-1">
                    Info / Edit
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,6 +223,13 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, on
            </div>
         </div>
       )}
+
+      <ProgressModal
+        isOpen={showProgress}
+        onClose={() => setShowProgress(false)}
+        exerciseName={exerciseDef.name}
+        history={history}
+      />
     </div>
   );
 }

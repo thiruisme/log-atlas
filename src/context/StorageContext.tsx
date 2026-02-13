@@ -11,7 +11,7 @@ interface StorageContextType {
   isLoading: boolean;
   refresh: () => Promise<void>;
   addLog: (log: WorkoutLog) => void;
-  getHistoryForExercise: (exerciseId: string) => ExerciseLog[];
+  getHistoryForExercise: (exerciseId: string) => { date: string; log: ExerciseLog }[];
   logout: () => void;
   // CRUD
   addExercise: (exercise: Exercise) => void;
@@ -107,11 +107,11 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getHistoryForExercise = (exerciseId: string) => {
-    const history: ExerciseLog[] = [];
+    const history: { date: string; log: ExerciseLog }[] = [];
     data.logs.forEach(workoutLog => {
       const exLog = workoutLog.exercises.find(e => e.exerciseId === exerciseId);
       if (exLog) {
-        history.push(exLog);
+        history.push({ date: workoutLog.date, log: exLog });
       }
     });
     return history;

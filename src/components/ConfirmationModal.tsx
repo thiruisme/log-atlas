@@ -11,6 +11,7 @@ interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'primary';
+  disabled?: boolean;
 }
 
 export default function ConfirmationModal({
@@ -21,7 +22,8 @@ export default function ConfirmationModal({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'primary'
+  variant = 'primary',
+  disabled = false
 }: ConfirmationModalProps) {
   if (!isOpen) return null;
 
@@ -48,24 +50,28 @@ export default function ConfirmationModal({
 
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className={`w-full py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter transition-all hover:scale-[1.02] active:scale-[0.98] ${
-              variant === 'danger' 
-                ? 'bg-error text-black shadow-lg shadow-error/20' 
+            onClick={onConfirm}
+            disabled={disabled}
+            className={`w-full py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter transition-all ${
+              disabled
+                ? 'opacity-60 cursor-not-allowed'
+                : 'hover:scale-[1.02] active:scale-[0.98]'
+            } ${
+              variant === 'danger'
+                ? 'bg-error text-black shadow-lg shadow-error/20'
                 : 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
             }`}
           >
             {confirmText}
           </button>
-          <button
-            onClick={onClose}
-            className="w-full py-4 rounded-xl font-black text-sm uppercase italic tracking-tighter text-text-muted hover:text-foreground transition-colors"
-          >
-            {cancelText}
-          </button>
+          {!disabled && (
+            <button
+              onClick={onClose}
+              className="w-full py-4 rounded-xl font-black text-sm uppercase italic tracking-tighter text-text-muted hover:text-foreground transition-colors"
+            >
+              {cancelText}
+            </button>
+          )}
         </div>
       </div>
     </div>

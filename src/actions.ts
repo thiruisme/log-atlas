@@ -169,6 +169,7 @@ export async function getBootstrapData(): Promise<AppData | null> {
         prisma.workoutLog.findMany({
             where: { userId },
             orderBy: { date: 'desc' },
+            take: 50,
             include: {
                 exercises: {
                     include: { sets: true }
@@ -189,37 +190,34 @@ export async function getBootstrapData(): Promise<AppData | null> {
 export async function addLogAction(log: WorkoutLog) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
-    
-    // Transform App Type to Prisma Create Input
-    // We need to create the WorkoutLog, ExerciseLogs, and SetLogs
-    
-    await prisma.workoutLog.create({
-        data: {
-            userId: session.user.id,
-            workoutId: log.workoutId,
-            date: new Date(log.date),
-            durationMinutes: log.durationMinutes,
-            exercises: {
-                create: log.exercises.map(exLog => ({
-                    exerciseId: exLog.exerciseId,
-                    sets: {
-                        create: exLog.sets.map(s => ({
-                            weight: s.weight,
-                            reps: s.reps,
-                            completed: s.completed,
-                            rpe: s.rpe
-                        }))
-                    }
-                }))
+
+    await prisma.$transaction([
+        prisma.workoutLog.create({
+            data: {
+                userId: session.user.id,
+                workoutId: log.workoutId,
+                date: new Date(log.date),
+                durationMinutes: log.durationMinutes,
+                exercises: {
+                    create: log.exercises.map(exLog => ({
+                        exerciseId: exLog.exerciseId,
+                        sets: {
+                            create: exLog.sets.map(s => ({
+                                weight: s.weight,
+                                reps: s.reps,
+                                completed: s.completed,
+                                rpe: s.rpe
+                            }))
+                        }
+                    }))
+                }
             }
-        }
-    });
-    
-    // Update "Last Performed" on workout
-    await prisma.workout.update({
-        where: { id: log.workoutId },
-        data: { lastPerformed: new Date(log.date) }
-    });
+        }),
+        prisma.workout.update({
+            where: { id: log.workoutId },
+            data: { lastPerformed: new Date(log.date) }
+        })
+    ]);
 
     revalidatePath('/');
 }
@@ -292,60 +290,48 @@ export async function saveWorkoutAction(workout: Workout) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
 
+    const exerciseData = workout.exercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        order: ex.order,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest: ex.rest
+    }));
+
     const existing = await prisma.workout.findUnique({ where: { id: workout.id } });
 
     if (existing) {
         if(existing.userId !== session.user.id) throw new Error("Unauthorized access");
-        
-        // Update basic info
-        await prisma.workout.update({
-            where: { id: workout.id },
-            data: {
-                title: workout.title,
-                day: workout.day,
-                focus: workout.focus,
-            }
-        });
-        
-        // Re-create exercises (simplest way to handle reordering/changes)
-        await prisma.workoutExercise.deleteMany({ where: { workoutId: workout.id } });
-        
-        for (const ex of workout.exercises) {
-            await prisma.workoutExercise.create({
+
+        await prisma.$transaction([
+            prisma.workout.update({
+                where: { id: workout.id },
                 data: {
-                    workoutId: workout.id,
-                    exerciseId: ex.exerciseId,
-                    order: ex.order,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    rest: ex.rest
+                    title: workout.title,
+                    day: workout.day,
+                    focus: workout.focus,
                 }
-            });
-        }
-        
+            }),
+            prisma.workoutExercise.deleteMany({ where: { workoutId: workout.id } }),
+            ...exerciseData.map(ex =>
+                prisma.workoutExercise.create({
+                    data: { workoutId: workout.id, ...ex }
+                })
+            )
+        ]);
     } else {
-        const created = await prisma.workout.create({
+        await prisma.workout.create({
             data: {
                 id: workout.id,
                 userId: session.user.id,
                 title: workout.title,
                 day: workout.day,
                 focus: workout.focus,
+                exercises: {
+                    create: exerciseData
+                }
             }
         });
-        
-        for (const ex of workout.exercises) {
-            await prisma.workoutExercise.create({
-                data: {
-                    workoutId: created.id,
-                    exerciseId: ex.exerciseId,
-                    order: ex.order,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    rest: ex.rest
-                }
-            });
-        }
     }
     revalidatePath('/');
 }

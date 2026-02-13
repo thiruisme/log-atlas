@@ -155,17 +155,18 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
           const exerciseDef = data.exercises.find(e => e.id === target.exerciseId);
           const currentExLog = log.exercises.find(e => e.exerciseId === target.exerciseId);
           const history = getHistoryForExercise(target.exerciseId);
-          const previousLog = history.length > 0 ? history[0] : undefined;
+          const previousLog = history.length > 0 ? history[0].log : undefined;
 
           if (!exerciseDef || !currentExLog) return null;
 
           return (
-            <ExerciseCard 
-              key={target.exerciseId} 
+            <ExerciseCard
+              key={target.exerciseId}
               exerciseDef={exerciseDef}
               target={target}
               log={currentExLog}
               previousLog={previousLog}
+              history={history}
               onUpdateLog={(updated) => handleUpdateExerciseLog(target.exerciseId, updated)}
             />
           );
@@ -193,13 +194,14 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
         variant="danger"
       />
 
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={isFinishModalOpen}
-        onClose={() => !isSaving && setIsFinishModalOpen(false)} // Prevent closing while saving
+        onClose={() => !isSaving && setIsFinishModalOpen(false)}
         onConfirm={confirmFinish}
         title="Finish Session?"
         message="Save your results to your atlas history."
         confirmText={isSaving ? "Saving..." : "Finish & Save"}
+        disabled={isSaving}
       />
 
       <ConfirmationModal 
