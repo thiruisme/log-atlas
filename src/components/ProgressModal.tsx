@@ -90,7 +90,7 @@ export default function ProgressModal({ isOpen, onClose, exerciseName, history }
       </div>
 
       {/* Chart */}
-      <div className="flex-1 px-2 pb-8 select-none" style={{ touchAction: 'none', WebkitUserSelect: 'none' }}>
+      <div className="flex-1 px-2 pb-8 select-none" style={{ touchAction: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent', outline: 'none' }}>
         {history.length < 2 ? (
           <div className="flex items-center justify-center h-full text-text-muted font-bold italic text-sm">
             Need at least 2 sessions to show progress
