@@ -2,6 +2,7 @@
 
 import { SessionProvider, useSession } from "next-auth/react";
 import { StorageProvider } from "@/context/StorageContext";
+import { ToastContainer } from "@/components/Toast";
 
 function StorageWrapper({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -19,6 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <StorageWrapper>
         {children}
+        <ToastContainer />
       </StorageWrapper>
     </SessionProvider>
   );

@@ -22,25 +22,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = (credentials.email as string).toLowerCase().trim();
         const password = credentials.password as string;
 
-        console.log("Attempting login for:", email);
-
         const user = await prisma.user.findUnique({
           where: { email },
         });
 
         if (!user) {
-          console.log("Login failed: User not found");
           return null;
         }
 
         const isValid = await compare(password, user.password);
 
         if (!isValid) {
-            console.log("Login failed: Invalid password");
             return null;
         }
 
-        console.log("Login success for:", email);
         return user;
       },
     }),

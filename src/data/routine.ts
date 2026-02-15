@@ -5,7 +5,7 @@ export interface Exercise {
   reps: string;
   rest: string;
   notes?: string[];
-  videoUrl?: string;
+  photoUrl?: string;
   variants?: string[];
   instructions?: string[];
   commonMistakes?: string[];

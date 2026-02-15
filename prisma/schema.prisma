@@ -30,7 +30,7 @@ model Exercise {
   defaultReps   String    @default("8-12")
   defaultRest   String    @default("60s")
   notes         String?
-  videoUrl      String?
+  photoUrl      String?   @map("videoUrl")
   
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   

@@ -12,6 +12,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico, apple-icon.png, etc. (static files in public directory)
      */
-    '/((?!api|_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|webmanifest|xml|txt)$).*)',
+    '/((?!api/auth|_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|webmanifest|xml|txt)$).*)',
   ],
 }

@@ -10,7 +10,7 @@ export interface Exercise {
   defaultReps: string;
   defaultRest: string; // e.g., "90s", "2-3 min"
   notes?: string;
-  videoUrl?: string;
+  photoUrl?: string;
   instructions?: string[];
 }
 

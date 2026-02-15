@@ -45,7 +45,6 @@ export default function LoginPage() {
         window.location.href = '/';
       }
     } catch (err) {
-      console.error("Auth error:", err);
       setError("An unexpected error occurred");
       setLoading(false);
     }

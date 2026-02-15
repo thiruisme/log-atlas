@@ -38,8 +38,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
       } else {
           setData({ exercises: [], workouts: [], logs: [] });
       }
-    } catch (e) {
-      console.error("Failed to load user data", e);
+    } catch {
+      // Silent fail — data will be empty
     } finally {
       setIsLoading(false);
     }
@@ -62,48 +62,46 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
     
     try { 
         await addLogAction(log); 
-    } catch (e) { 
-        console.error("Add Log Failed", e);
-        // 3. Rollback on failure
+    } catch (e) {
         setData(previousData);
-        throw e; // Re-throw to let the UI know
+        throw e;
     }
   };
 
   const addExercise = async (exercise: Exercise) => {
-    // Optimistic
-    setData(prev => ({ ...prev, exercises: [...prev.exercises, exercise] }));
-    try { await saveExerciseAction(exercise); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, exercises: [...d.exercises, exercise] }));
+    try { await saveExerciseAction(exercise); } catch { setData(prev); }
   };
 
   const updateExercise = async (exercise: Exercise) => {
-    // Optimistic
-    setData(prev => ({ ...prev, exercises: prev.exercises.map(e => e.id === exercise.id ? exercise : e) }));
-    try { await saveExerciseAction(exercise); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, exercises: d.exercises.map(e => e.id === exercise.id ? exercise : e) }));
+    try { await saveExerciseAction(exercise); } catch { setData(prev); }
   };
 
   const deleteExercise = async (id: string) => {
-    // Optimistic
-    setData(prev => ({ ...prev, exercises: prev.exercises.filter(e => e.id !== id) }));
-    try { await deleteExerciseAction(id); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, exercises: d.exercises.filter(e => e.id !== id) }));
+    try { await deleteExerciseAction(id); } catch { setData(prev); }
   };
 
   const addWorkout = async (workout: Workout) => {
-    // Optimistic
-    setData(prev => ({ ...prev, workouts: [...prev.workouts, workout] }));
-    try { await saveWorkoutAction(workout); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, workouts: [...d.workouts, workout] }));
+    try { await saveWorkoutAction(workout); } catch { setData(prev); }
   };
 
   const updateWorkout = async (workout: Workout) => {
-    // Optimistic
-    setData(prev => ({ ...prev, workouts: prev.workouts.map(w => w.id === workout.id ? workout : w) }));
-    try { await saveWorkoutAction(workout); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, workouts: d.workouts.map(w => w.id === workout.id ? workout : w) }));
+    try { await saveWorkoutAction(workout); } catch { setData(prev); }
   };
 
   const deleteWorkout = async (id: string) => {
-    // Optimistic
-    setData(prev => ({ ...prev, workouts: prev.workouts.filter(w => w.id !== id) }));
-    try { await deleteWorkoutAction(id); } catch (e) { console.error(e); }
+    const prev = data;
+    setData(d => ({ ...d, workouts: d.workouts.filter(w => w.id !== id) }));
+    try { await deleteWorkoutAction(id); } catch { setData(prev); }
   };
 
   const getHistoryForExercise = (exerciseId: string) => {
@@ -119,6 +117,17 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
       setData({ exercises: [], workouts: [], logs: [] });
+      // Clear all app-related localStorage keys
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('workout_draft_') || key.startsWith('exercise_editor_draft_') ||
+            key.startsWith('workout_editor_draft_') || key.startsWith('rest_timer_') ||
+            key.startsWith('completed-'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
       await signOut({ callbackUrl: '/login' });
   };
 

@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useStorage } from '@/context/StorageContext';
 import ThemeToggle from '@/components/ThemeToggle';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { toast } from '@/components/Toast';
 import { useEffect, useRef, useState } from 'react';
-import { ExerciseLog, Workout, WorkoutLog } from '@/types/db';
+import { AppData, Exercise, ExerciseLog, Workout, WorkoutLog } from '@/types/db';
 import { useSession } from 'next-auth/react';
 
 export default function Home() {
-  const { data, isLoading, logout, addLog } = useStorage();
+  const { data, isLoading, logout, addLog, addExercise, addWorkout } = useStorage();
   const { data: session } = useSession();
   const [todayWorkout, setTodayWorkout] = useState<Workout | undefined>(undefined);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -20,6 +21,14 @@ export default function Home() {
     matched: number;
     skipped: number;
     skippedExercises: string[];
+    duplicates: number;
+    invalidDates: number;
+  } | null>(null);
+  const [jsonImportModal, setJsonImportModal] = useState<{
+    data: AppData;
+    newExercises: Exercise[];
+    newWorkouts: Workout[];
+    newLogs: WorkoutLog[];
   } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -43,6 +52,7 @@ export default function Home() {
 
   const handleExport = () => {
     const rows: string[] = ['date,workout,exercise,set,weight_kg,reps,rpe,completed'];
+    let setCount = 0;
     for (const log of data.logs) {
       const workout = data.workouts.find(w => w.id === log.workoutId);
       const workoutName = workout?.title || 'Unknown Workout';
@@ -53,16 +63,20 @@ export default function Home() {
         exLog.sets.forEach((set, i) => {
           const rpe = set.rpe != null ? String(set.rpe) : '';
           rows.push([date, csvEscape(workoutName), csvEscape(exerciseName), i + 1, set.weight, set.reps, rpe, set.completed].join(','));
+          setCount++;
         });
       }
     }
     const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `log-atlas-export-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `log-atlas-export-${new Date().toISOString().split('T')[0]}.csv`);
+    toast(`Exported ${setCount} sets`);
+  };
+
+  const handleExportJSON = () => {
+    const backup = { exercises: data.exercises, workouts: data.workouts, logs: data.logs };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `log-atlas-backup-${new Date().toISOString().split('T')[0]}.json`);
+    toast(`Backed up ${data.exercises.length} exercises, ${data.workouts.length} workouts, ${data.logs.length} logs`);
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,10 +85,52 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      setImportModal(parseImportCSV(text));
+      if (file.name.endsWith('.json')) {
+        parseImportJSON(text);
+      } else {
+        setImportModal(parseImportCSV(text));
+      }
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const parseImportJSON = (text: string) => {
+    try {
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed.exercises) || !Array.isArray(parsed.workouts) || !Array.isArray(parsed.logs)) {
+        toast('Invalid backup file — missing exercises, workouts, or logs', 'error');
+        return;
+      }
+
+      // Validate individual item shapes — skip malformed entries
+      const isValidExercise = (e: any): e is Exercise =>
+        typeof e?.id === 'string' && typeof e?.name === 'string' && typeof e?.defaultSets === 'number';
+      const isValidWorkout = (w: any): w is Workout =>
+        typeof w?.id === 'string' && typeof w?.title === 'string' && typeof w?.day === 'string' && Array.isArray(w?.exercises);
+      const isValidLog = (l: any): l is WorkoutLog =>
+        typeof l?.id === 'string' && typeof l?.workoutId === 'string' && typeof l?.date === 'string' && Array.isArray(l?.exercises);
+
+      const exercises = parsed.exercises.filter(isValidExercise);
+      const workouts = parsed.workouts.filter(isValidWorkout);
+      const logs = parsed.logs.filter(isValidLog);
+      const backup: AppData = { exercises, workouts, logs };
+
+      const skipped = (parsed.exercises.length - exercises.length) + (parsed.workouts.length - workouts.length) + (parsed.logs.length - logs.length);
+      if (skipped > 0) toast(`${skipped} malformed items skipped`, 'error');
+
+      const existingExNames = new Set(data.exercises.map(e => e.name.toLowerCase()));
+      const existingWkNames = new Set(data.workouts.map(w => w.title.toLowerCase()));
+      const existingLogKeys = new Set(data.logs.map(l => `${new Date(l.date).toISOString().split('T')[0]}|${l.workoutId}`));
+
+      const newExercises = backup.exercises.filter(e => !existingExNames.has(e.name.toLowerCase()));
+      const newWorkouts = backup.workouts.filter(w => !existingWkNames.has(w.title.toLowerCase()));
+      const newLogs = backup.logs.filter(l => !existingLogKeys.has(`${new Date(l.date).toISOString().split('T')[0]}|${l.workoutId}`));
+
+      setJsonImportModal({ data: backup, newExercises, newWorkouts, newLogs });
+    } catch {
+      toast('Failed to parse JSON file', 'error');
+    }
   };
 
   const parseImportCSV = (text: string) => {
@@ -87,15 +143,28 @@ export default function Home() {
     const workoutLookup = new Map<string, string>();
     for (const w of data.workouts) workoutLookup.set(w.title.toLowerCase(), w.id);
 
+    // Build set of existing log keys for duplicate detection
+    const existingLogKeys = new Set(
+      data.logs.map(l => `${new Date(l.date).toISOString().split('T')[0]}|${l.workoutId}`)
+    );
+
     const logGroups = new Map<string, { date: string; workoutId: string; exercises: Map<string, { weight: number; reps: number; rpe?: number; completed: boolean }[]> }>();
     let matched = 0;
     let skipped = 0;
+    let invalidDates = 0;
     const skippedExercises = new Set<string>();
 
     for (const line of dataLines) {
       if (!line.trim()) continue;
       const cols = parseCSVLine(line);
       const [date, workout, exercise, , weight, reps, rpe, completed] = cols;
+
+      // Date validation
+      if (isNaN(Date.parse(date))) {
+        invalidDates++;
+        continue;
+      }
+
       const exerciseId = exerciseLookup.get(exercise.toLowerCase());
       if (!exerciseId) {
         skipped++;
@@ -116,8 +185,15 @@ export default function Home() {
       matched++;
     }
 
+    // Build logs and detect duplicates
     const logs: WorkoutLog[] = [];
+    let duplicates = 0;
     for (const [, group] of logGroups) {
+      const dateKey = new Date(group.date).toISOString().split('T')[0];
+      if (existingLogKeys.has(`${dateKey}|${group.workoutId}`)) {
+        duplicates++;
+        continue;
+      }
       const exercises: ExerciseLog[] = [];
       for (const [exerciseId, sets] of group.exercises) exercises.push({ exerciseId, sets });
       logs.push({
@@ -128,7 +204,7 @@ export default function Home() {
         exercises,
       });
     }
-    return { logs, matched, skipped, skippedExercises: Array.from(skippedExercises) };
+    return { logs, matched, skipped, skippedExercises: Array.from(skippedExercises), duplicates, invalidDates };
   };
 
   const confirmImport = async () => {
@@ -136,9 +212,28 @@ export default function Home() {
     setIsImporting(true);
     try {
       for (const log of importModal.logs) await addLog(log);
+      toast(`Imported ${importModal.logs.length} sessions`);
     } finally {
       setIsImporting(false);
       setImportModal(null);
+    }
+  };
+
+  const confirmJsonImport = async () => {
+    if (!jsonImportModal) return;
+    setIsImporting(true);
+    try {
+      for (const ex of jsonImportModal.newExercises) await addExercise(ex);
+      for (const wk of jsonImportModal.newWorkouts) await addWorkout(wk);
+      for (const log of jsonImportModal.newLogs) await addLog(log);
+      const parts: string[] = [];
+      if (jsonImportModal.newExercises.length) parts.push(`${jsonImportModal.newExercises.length} exercises`);
+      if (jsonImportModal.newWorkouts.length) parts.push(`${jsonImportModal.newWorkouts.length} workouts`);
+      if (jsonImportModal.newLogs.length) parts.push(`${jsonImportModal.newLogs.length} logs`);
+      toast(parts.length ? `Imported ${parts.join(', ')}` : 'Nothing new to import');
+    } finally {
+      setIsImporting(false);
+      setJsonImportModal(null);
     }
   };
 
@@ -288,13 +383,21 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13" />
                 </svg>
              </div>
-             <span className="text-sm font-black uppercase tracking-tighter block">Import CSV</span>
+             <span className="text-sm font-black uppercase tracking-tighter block">Import</span>
           </button>
-          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
+          <button onClick={handleExportJSON} className="col-span-2 bg-card border border-card-border p-6 rounded-2xl text-center hover:border-accent/50 transition-all">
+             <div className="mb-3 flex justify-center text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125v-3.75" />
+                </svg>
+             </div>
+             <span className="text-sm font-black uppercase tracking-tighter block">Backup All (JSON)</span>
+          </button>
+          <input ref={fileInputRef} type="file" accept=".csv,.json" onChange={handleImportFile} className="hidden" />
         </div>
       </section>
 
-      {/* Import Confirmation Modal */}
+      {/* CSV Import Confirmation Modal */}
       {importModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-card border-2 border-card-border p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center animate-in zoom-in-95 duration-200">
@@ -305,9 +408,15 @@ export default function Home() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2 leading-none text-foreground">Import Data</h2>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2 leading-none text-foreground">Import CSV</h2>
             <div className="text-text-secondary font-medium italic text-[14px] mb-6 px-4 text-left space-y-2">
               <p>{importModal.matched} sets across {importModal.logs.length} workout sessions found.</p>
+              {importModal.duplicates > 0 && (
+                <p className="text-text-muted">{importModal.duplicates} sessions already exist and will be skipped.</p>
+              )}
+              {importModal.invalidDates > 0 && (
+                <p className="text-error">{importModal.invalidDates} rows skipped (invalid date).</p>
+              )}
               {importModal.skipped > 0 && (
                 <p className="text-error">{importModal.skipped} rows skipped — unrecognized exercises: {importModal.skippedExercises.join(', ')}</p>
               )}
@@ -335,8 +444,64 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* JSON Import Confirmation Modal */}
+      {jsonImportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-card border-2 border-card-border p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center animate-in zoom-in-95 duration-200">
+            <div className="mb-6 flex justify-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-accent/10 text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125v-3.75" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-2 leading-none text-foreground">Restore Backup</h2>
+            <div className="text-text-secondary font-medium italic text-[14px] mb-6 px-4 text-left space-y-2">
+              <p>Backup contains {jsonImportModal.data.exercises.length} exercises, {jsonImportModal.data.workouts.length} workouts, {jsonImportModal.data.logs.length} logs.</p>
+              {(jsonImportModal.data.exercises.length - jsonImportModal.newExercises.length > 0 ||
+                jsonImportModal.data.workouts.length - jsonImportModal.newWorkouts.length > 0 ||
+                jsonImportModal.data.logs.length - jsonImportModal.newLogs.length > 0) && (
+                <p className="text-text-muted">
+                  Existing items will be skipped: {jsonImportModal.data.exercises.length - jsonImportModal.newExercises.length} exercises, {jsonImportModal.data.workouts.length - jsonImportModal.newWorkouts.length} workouts, {jsonImportModal.data.logs.length - jsonImportModal.newLogs.length} logs.
+                </p>
+              )}
+              <p className="font-black text-foreground">{jsonImportModal.newExercises.length} new exercises, {jsonImportModal.newWorkouts.length} new workouts, {jsonImportModal.newLogs.length} new logs will be imported.</p>
+              {jsonImportModal.newExercises.length === 0 && jsonImportModal.newWorkouts.length === 0 && jsonImportModal.newLogs.length === 0 && (
+                <p className="text-error">Nothing new to import.</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-3">
+              {(jsonImportModal.newExercises.length > 0 || jsonImportModal.newWorkouts.length > 0 || jsonImportModal.newLogs.length > 0) && (
+                <button
+                  onClick={confirmJsonImport}
+                  disabled={isImporting}
+                  className={`w-full py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter bg-accent text-accent-foreground shadow-lg shadow-accent/20 transition-all ${isImporting ? 'opacity-60 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
+                >
+                  {isImporting ? 'Restoring...' : 'Restore Backup'}
+                </button>
+              )}
+              <button
+                onClick={() => setJsonImportModal(null)}
+                className="w-full py-4 rounded-xl font-black text-sm uppercase italic tracking-tighter text-text-muted hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function csvEscape(value: string): string {

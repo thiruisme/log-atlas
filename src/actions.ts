@@ -5,11 +5,94 @@ import { hash } from 'bcryptjs';
 import { auth, signIn, signOut } from '@/auth';
 import { routine } from '@/data/routine';
 import { revalidatePath, unstable_noStore } from 'next/cache';
+import { headers } from 'next/headers';
 import { AppData, Exercise, Workout, WorkoutLog, WorkoutExercise, ExerciseLog } from '@/types/db';
+import { z } from 'zod';
+
+// --- Rate Limiting ---
+
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(key: string, maxAttempts: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+  if (!entry || now > entry.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxAttempts) return false;
+  entry.count++;
+  return true;
+}
+
+async function getClientIp(): Promise<string> {
+  const h = await headers();
+  return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown';
+}
+
+// --- Validation Schemas ---
+
+const MuscleGroups = ['Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core', 'Cardio', 'Other'] as const;
+const EquipmentTypes = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other'] as const;
+
+const exerciseSchema = z.object({
+  id: z.string().min(1).max(50),
+  name: z.string().min(1).max(200),
+  targetMuscle: z.enum(MuscleGroups),
+  equipment: z.enum(EquipmentTypes).optional(),
+  defaultSets: z.number().int().min(1).max(100),
+  defaultReps: z.string().max(50),
+  defaultRest: z.string().max(50),
+  notes: z.string().max(2000).optional(),
+  photoUrl: z.string().url().max(500).optional().or(z.literal('')),
+  instructions: z.array(z.string().max(500)).max(20).optional(),
+});
+
+const setSchema = z.object({
+  weight: z.number().min(0).max(2000),
+  reps: z.number().int().min(0).max(1000),
+  rpe: z.number().min(1).max(10).optional(),
+  completed: z.boolean(),
+});
+
+const exerciseLogSchema = z.object({
+  exerciseId: z.string().min(1).max(50),
+  sets: z.array(setSchema).min(1).max(100),
+});
+
+const workoutLogSchema = z.object({
+  id: z.string().min(1).max(50),
+  workoutId: z.string().min(1).max(50),
+  date: z.string().min(1).max(50),
+  durationMinutes: z.number().min(0).max(1440),
+  exercises: z.array(exerciseLogSchema).max(50),
+});
+
+const workoutExerciseSchema = z.object({
+  exerciseId: z.string().min(1).max(50),
+  sets: z.number().int().min(1).max(100),
+  reps: z.string().max(50),
+  rest: z.string().max(50),
+  order: z.number().int().min(0).max(100),
+});
+
+const workoutSchema = z.object({
+  id: z.string().min(1).max(50),
+  title: z.string().min(1).max(200),
+  day: z.string().min(1).max(20),
+  focus: z.string().max(200),
+  exercises: z.array(workoutExerciseSchema).max(50),
+  lastPerformed: z.string().optional(),
+});
 
 // --- Auth Actions ---
 
 export async function registerUser(formData: FormData) {
+  const ip = await getClientIp();
+  if (!checkRateLimit(`register:${ip}`, 5, 60 * 1000)) {
+    return { error: 'Too many attempts. Please wait a minute.' };
+  }
+
   const email = (formData.get('email') as string)?.toLowerCase().trim();
   const password = formData.get('password') as string;
   const name = formData.get('name') as string;
@@ -18,13 +101,21 @@ export async function registerUser(formData: FormData) {
     return { error: 'Missing fields' };
   }
 
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: 'Invalid email format' };
+  }
+
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters' };
+  }
+
   // Check if user exists
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { error: 'User already exists' };
   }
 
-  const hashedPassword = await hash(password, 10);
+  const hashedPassword = await hash(password, 12);
 
   // Transaction: Create User -> Seed Exercises -> Seed Workouts
   try {
@@ -116,7 +207,6 @@ export async function registerUser(formData: FormData) {
     // We can't easily sign them in inside a server action called from a form without redirecting.
     // We will let the client handle the redirect to login or auto-login via next-auth's signIn
   } catch (e: any) {
-      console.error(e);
       if (e.code === 'P2002') {
           return { error: 'User already exists' };
       }
@@ -127,6 +217,11 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
+    const ip = await getClientIp();
+    if (!checkRateLimit(`login:${ip}`, 10, 60 * 1000)) {
+        return { error: 'Too many login attempts. Please wait a minute.' };
+    }
+
     try {
         await signIn("credentials", formData);
     } catch (error) {
@@ -139,7 +234,6 @@ export async function loginAction(formData: FormData) {
         if (err.message.includes("NEXT_REDIRECT")) {
             throw error;
         }
-        console.error("Login Action Error:", error);
         return { error: "An unexpected error occurred. Please check your connection." };
     }
 }
@@ -153,8 +247,6 @@ export async function logoutAction() {
 export async function getBootstrapData(): Promise<AppData | null> {
     unstable_noStore();
     const session = await auth();
-    console.log("Bootstrap request for:", session?.user?.email || 'No Session');
-    
     if (!session?.user?.id) {
         return null;
     }
@@ -178,8 +270,6 @@ export async function getBootstrapData(): Promise<AppData | null> {
         })
     ]);
 
-    console.log(`Loaded: ${exercises.length} ex, ${workouts.length} wk, ${logs.length} logs`);
-
     return {
         exercises: exercises as unknown as Exercise[],
         workouts: workouts as unknown as Workout[], // Type casting due to Prisma vs App type diffs
@@ -188,8 +278,27 @@ export async function getBootstrapData(): Promise<AppData | null> {
 }
 
 export async function addLogAction(log: WorkoutLog) {
+    const parsed = workoutLogSchema.safeParse(log);
+    if (!parsed.success) throw new Error("Invalid input");
+    log = parsed.data as WorkoutLog;
+
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
+    const userId = session.user.id;
+
+    // Verify the workout belongs to this user
+    const workout = await prisma.workout.findUnique({ where: { id: log.workoutId } });
+    if (!workout || workout.userId !== userId) throw new Error("Unauthorized");
+
+    // Verify all exercises belong to this user
+    const exerciseIds = log.exercises.map(e => e.exerciseId);
+    if (exerciseIds.length > 0) {
+        const exercises = await prisma.exercise.findMany({
+            where: { id: { in: exerciseIds }, userId },
+            select: { id: true },
+        });
+        if (exercises.length !== exerciseIds.length) throw new Error("Unauthorized");
+    }
 
     await prisma.$transaction([
         prisma.workoutLog.create({
@@ -225,9 +334,13 @@ export async function addLogAction(log: WorkoutLog) {
 // --- CRUD Actions ---
 
 export async function saveExerciseAction(exercise: Exercise) {
+    const parsed = exerciseSchema.safeParse(exercise);
+    if (!parsed.success) throw new Error("Invalid input");
+    exercise = parsed.data as Exercise;
+
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
-    
+
     // Check if ID exists (update vs create)
     // Note: The UI generates UUIDs for new items, so we check if it exists in DB.
     // However, Prisma Create vs Update is distinct. 
@@ -252,7 +365,7 @@ export async function saveExerciseAction(exercise: Exercise) {
                 defaultReps: exercise.defaultReps,
                 defaultRest: exercise.defaultRest,
                 notes: exercise.notes,
-                videoUrl: exercise.videoUrl
+                photoUrl: exercise.photoUrl
             }
         });
     } else {
@@ -267,7 +380,7 @@ export async function saveExerciseAction(exercise: Exercise) {
                 defaultReps: exercise.defaultReps,
                 defaultRest: exercise.defaultRest,
                 notes: exercise.notes,
-                videoUrl: exercise.videoUrl
+                photoUrl: exercise.photoUrl
             }
         });
     }
@@ -287,6 +400,10 @@ export async function deleteExerciseAction(id: string) {
 }
 
 export async function saveWorkoutAction(workout: Workout) {
+    const parsed = workoutSchema.safeParse(workout);
+    if (!parsed.success) throw new Error("Invalid input");
+    workout = parsed.data as Workout;
+
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
 

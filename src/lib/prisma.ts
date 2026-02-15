@@ -14,8 +14,6 @@ if (url.startsWith('file:./') || url.startsWith('file:.\\')) {
     url = pathToFileURL(dbPath).toString();
 }
 
-console.log("PrismaLibSql URL:", url);
-
 const adapter = new PrismaLibSql({
   url,
   authToken: process.env.TURSO_AUTH_TOKEN

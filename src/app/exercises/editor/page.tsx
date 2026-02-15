@@ -28,7 +28,7 @@ function ExerciseEditorContent() {
     defaultReps: '10',
     defaultRest: '90',
     notes: '',
-    videoUrl: ''
+    photoUrl: ''
   });
 
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
@@ -45,7 +45,7 @@ function ExerciseEditorContent() {
         defaultReps: '10',
         defaultRest: '90',
         notes: '',
-        videoUrl: ''
+        photoUrl: ''
     };
 
     if (isEditing && data.exercises.length > 0) {
