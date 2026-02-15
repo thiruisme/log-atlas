@@ -71,6 +71,7 @@
   --color-error-bg: var(--error-bg);
   --color-error-border: var(--error-border);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {

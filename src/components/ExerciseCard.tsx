@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { Exercise, WorkoutExercise, ExerciseLog, EquipmentType } from '@/types/db';
 import ScrollPicker from './ScrollPicker';
@@ -33,24 +33,35 @@ function getRepsOptions(): number[] {
 
 export default function ExerciseCard({ exerciseDef, target, log, previousLog, history, onUpdateLog }: ExerciseCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [timer, setTimer] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const endTimeRef = useRef<number | null>(null);
   const [showProgress, setShowProgress] = useState(false);
 
   // Generate options once based on equipment
   const weightOptions = useMemo(() => getWeightOptions(exerciseDef.equipment), [exerciseDef.equipment]);
   const repsOptions = useMemo(() => getRepsOptions(), []);
 
+  // Timestamp-based timer: survives tab backgrounding and screen-off
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (timer !== null && timer > 0) {
-      interval = setInterval(() => {
-        setTimer(prev => (prev !== null && prev > 0 ? prev - 1 : null));
-      }, 1000);
-    } else if (timer === 0) {
-      setTimer(null);
+    if (endTimeRef.current === null) {
+      setRemaining(null);
+      return;
     }
+
+    const tick = () => {
+      const left = Math.round((endTimeRef.current! - Date.now()) / 1000);
+      if (left <= 0) {
+        endTimeRef.current = null;
+        setRemaining(null);
+      } else {
+        setRemaining(left);
+      }
+    };
+
+    tick(); // immediate sync on focus/resume
+    const interval = setInterval(tick, 500);
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [endTimeRef.current]);
 
   const updateSet = (index: number, field: 'weight' | 'reps', value: number) => {
     const newSets = [...log.sets];
@@ -80,7 +91,7 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
   const startTimer = () => {
     const restStr = target.rest?.toLowerCase() || exerciseDef.defaultRest?.toLowerCase() || '60s';
     let seconds = 60;
-    
+
     if (restStr.includes('min')) {
       const match = restStr.match(/(\d+)/);
       if (match) seconds = parseInt(match[0]) * 60;
@@ -88,11 +99,13 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
       const match = restStr.match(/(\d+)/);
       if (match) seconds = parseInt(match[0]);
     }
-    setTimer(seconds);
+    endTimeRef.current = Date.now() + seconds * 1000;
+    setRemaining(seconds);
   };
 
   const stopTimer = () => {
-    setTimer(null);
+    endTimeRef.current = null;
+    setRemaining(null);
   };
 
   const isExerciseComplete = log.sets.length >= target.sets && log.sets.every(s => s.completed);
@@ -116,18 +129,18 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
              <button 
               onClick={(e) => { 
                 e.stopPropagation(); 
-                timer !== null ? stopTimer() : startTimer(); 
+                remaining !== null ? stopTimer() : startTimer();
               }}
-              className={`relative z-10 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${timer !== null ? 'text-error animate-pulse' : 'text-text-muted hover:text-accent'}`}
+              className={`relative z-10 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${remaining !== null ? 'text-error animate-pulse' : 'text-text-muted hover:text-accent'}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {timer !== null ? (
+                {remaining !== null ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
                 ) : (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 )}
               </svg>
-              {timer !== null ? `STOP ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}` : exerciseDef.defaultRest || target.rest}
+              {remaining !== null ? `STOP ${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}` : exerciseDef.defaultRest || target.rest}
             </button>
           </div>
         </div>
