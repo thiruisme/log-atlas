@@ -240,8 +240,8 @@ function WorkoutEditorContent() {
                                     <input type="text" value={ex.reps} onChange={(e) => updateExerciseDetail(index, 'reps', e.target.value)} className="w-full bg-background border border-card-border rounded p-1 text-center font-bold text-xs" />
                                 </div>
                                 <div>
-                                    <label className="text-[8px] uppercase tracking-widest text-text-muted block mb-1">Rest</label>
-                                    <input type="text" value={ex.rest} onChange={(e) => updateExerciseDetail(index, 'rest', e.target.value)} className="w-full bg-background border border-card-border rounded p-1 text-center font-bold text-xs" />
+                                    <label className="text-[8px] uppercase tracking-widest text-text-muted block mb-1">Rest (s)</label>
+                                    <input type="number" min="0" step="5" value={parseInt(ex.rest) || ''} onChange={(e) => updateExerciseDetail(index, 'rest', String(Math.max(0, parseInt(e.target.value) || 0)))} className="w-full bg-background border border-card-border rounded p-1 text-center font-bold text-xs" />
                                 </div>
                             </div>
                         </div>

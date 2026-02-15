@@ -26,14 +26,14 @@ export const routine: Workout[] = [
     day: 'Monday',
     title: 'PUSH A',
     focus: 'Shoulders, Chest & Triceps',
-    notes: ['Focus on heavy compounds', 'Keep rest under 3 min'],
+    notes: ['Focus on heavy compounds', 'Keep rest under 180s'],
     exercises: [
       {
         id: 'ohp',
         name: 'Overhead Press',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Barbell or seated dumbbell', 'Tight core, no leg drive'],
       },
       {
@@ -41,7 +41,7 @@ export const routine: Workout[] = [
         name: 'Incline Press',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Dumbbell or barbell', '45-degree angle'],
       },
       {
@@ -49,7 +49,7 @@ export const routine: Workout[] = [
         name: 'Lateral Raises',
         sets: '3',
         reps: '10–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Dumbbell or cable', 'Lead with elbows'],
       },
       {
@@ -57,7 +57,7 @@ export const routine: Workout[] = [
         name: 'Cable Flyes',
         sets: '3',
         reps: '12–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['High-to-low', 'Squeeze at center'],
       },
       {
@@ -65,7 +65,7 @@ export const routine: Workout[] = [
         name: 'Tricep Extension',
         sets: '3',
         reps: '10–12',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Close-grip bench or overhead'],
       },
       {
@@ -73,7 +73,7 @@ export const routine: Workout[] = [
         name: 'Shrugs',
         sets: '3',
         reps: '10–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Dumbbell or barbell', 'No rolling shoulders'],
       },
     ],
@@ -90,7 +90,7 @@ export const routine: Workout[] = [
         name: 'Lat Pulldown',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Pull-ups or wide-grip pulldown'],
       },
       {
@@ -98,7 +98,7 @@ export const routine: Workout[] = [
         name: 'Supported Row',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Chest-supported or seal row'],
       },
       {
@@ -106,7 +106,7 @@ export const routine: Workout[] = [
         name: 'Face Pulls',
         sets: '4',
         reps: '12–20',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Cable or band', 'Pull to forehead'],
       },
       {
@@ -114,7 +114,7 @@ export const routine: Workout[] = [
         name: 'Rear Delt Flyes',
         sets: '3',
         reps: '12–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Dumbbell or reverse pec deck'],
       },
       {
@@ -122,7 +122,7 @@ export const routine: Workout[] = [
         name: 'Bicep Curls',
         sets: '3',
         reps: '10–12',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Barbell or EZ-bar', 'No swinging'],
       },
       {
@@ -130,7 +130,7 @@ export const routine: Workout[] = [
         name: 'Hammer Curls',
         sets: '3',
         reps: '12–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Neutral grip'],
       },
       {
@@ -138,7 +138,7 @@ export const routine: Workout[] = [
         name: 'Stomach Vacuums',
         sets: '3–4',
         reps: '20–30s',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Empty lungs, pull navel to spine'],
       },
     ],
@@ -154,7 +154,7 @@ export const routine: Workout[] = [
         name: 'Shoulder Press',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Dumbbell seated or standing'],
       },
       {
@@ -162,7 +162,7 @@ export const routine: Workout[] = [
         name: 'Dumbbell Press',
         sets: '4',
         reps: '8–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Flat or slight incline'],
       },
       {
@@ -170,7 +170,7 @@ export const routine: Workout[] = [
         name: 'Upright Rows',
         sets: '3',
         reps: '10–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Wide grip to avoid impingement'],
       },
       {
@@ -178,7 +178,7 @@ export const routine: Workout[] = [
         name: 'Overhead Tricep',
         sets: '3',
         reps: '10–12',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Cable or dumbbell'],
       },
       {
@@ -186,7 +186,7 @@ export const routine: Workout[] = [
         name: 'Dips',
         sets: '3',
         reps: 'MAX',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Leaning forward for chest'],
       },
       {
@@ -194,7 +194,7 @@ export const routine: Workout[] = [
         name: 'Neck Work',
         sets: '3',
         reps: '15–20',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Flexion and extension'],
       },
       {
@@ -202,7 +202,7 @@ export const routine: Workout[] = [
         name: 'Core Rollouts',
         sets: '3',
         reps: '12–15',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Ab wheel or kneeling cable crunch'],
       },
     ],
@@ -218,7 +218,7 @@ export const routine: Workout[] = [
         name: 'Deadlifts',
         sets: '3–4',
         reps: '8–10',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Romanian or trap-bar'],
       },
       {
@@ -226,7 +226,7 @@ export const routine: Workout[] = [
         name: 'Hip Thrusts',
         sets: '3–4',
         reps: '10–15',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['Focus on glute squeeze'],
       },
       {
@@ -234,7 +234,7 @@ export const routine: Workout[] = [
         name: 'Squats',
         sets: '3',
         reps: '10–12',
-        rest: '2-3 min',
+        rest: '180',
         notes: ['High bar, goblet, or leg press'],
       },
       {
@@ -242,14 +242,14 @@ export const routine: Workout[] = [
         name: 'Leg Curls',
         sets: '3',
         reps: '10–15',
-        rest: '60-90 sec',
+        rest: '90',
       },
       {
         id: 'posture-work',
         name: 'Posture Work',
         sets: '3',
         reps: '15–20',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Face pulls or banded pull-aparts'],
       },
       {
@@ -257,7 +257,7 @@ export const routine: Workout[] = [
         name: 'Farmer’s Carries',
         sets: '3–4',
         reps: '30–40m',
-        rest: '60-90 sec',
+        rest: '90',
         notes: ['Heavy walks, upright chest'],
       },
     ],

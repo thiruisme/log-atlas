@@ -7,6 +7,7 @@ import ScrollPicker from './ScrollPicker';
 import ProgressModal from './ProgressModal';
 
 interface ExerciseCardProps {
+  workoutId: string;
   exerciseDef: Exercise;
   target: WorkoutExercise;
   log: ExerciseLog;
@@ -31,15 +32,30 @@ function getRepsOptions(): number[] {
     return opts;
 }
 
-export default function ExerciseCard({ exerciseDef, target, log, previousLog, history, onUpdateLog }: ExerciseCardProps) {
+export default function ExerciseCard({ workoutId, exerciseDef, target, log, previousLog, history, onUpdateLog }: ExerciseCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const [showProgress, setShowProgress] = useState(false);
+  const timerKey = `rest_timer_${workoutId}_${target.exerciseId}`;
 
   // Generate options once based on equipment
   const weightOptions = useMemo(() => getWeightOptions(exerciseDef.equipment), [exerciseDef.equipment]);
   const repsOptions = useMemo(() => getRepsOptions(), []);
+
+  // Restore persisted timer on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(timerKey);
+    if (saved) {
+      const end = parseInt(saved, 10);
+      if (end > Date.now()) {
+        endTimeRef.current = end;
+        setRemaining(Math.round((end - Date.now()) / 1000));
+      } else {
+        localStorage.removeItem(timerKey);
+      }
+    }
+  }, [timerKey]);
 
   // Timestamp-based timer: survives tab backgrounding and screen-off
   useEffect(() => {
@@ -53,6 +69,7 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
       if (left <= 0) {
         endTimeRef.current = null;
         setRemaining(null);
+        localStorage.removeItem(timerKey);
       } else {
         setRemaining(left);
       }
@@ -61,7 +78,7 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
     tick(); // immediate sync on focus/resume
     const interval = setInterval(tick, 500);
     return () => clearInterval(interval);
-  }, [endTimeRef.current]);
+  }, [endTimeRef.current, timerKey]);
 
   const updateSet = (index: number, field: 'weight' | 'reps', value: number) => {
     const newSets = [...log.sets];
@@ -89,23 +106,17 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
   };
 
   const startTimer = () => {
-    const restStr = target.rest?.toLowerCase() || exerciseDef.defaultRest?.toLowerCase() || '60s';
-    let seconds = 60;
-
-    if (restStr.includes('min')) {
-      const match = restStr.match(/(\d+)/);
-      if (match) seconds = parseInt(match[0]) * 60;
-    } else {
-      const match = restStr.match(/(\d+)/);
-      if (match) seconds = parseInt(match[0]);
-    }
-    endTimeRef.current = Date.now() + seconds * 1000;
+    const seconds = parseRestSeconds(target.rest || exerciseDef.defaultRest || '60');
+    const end = Date.now() + seconds * 1000;
+    endTimeRef.current = end;
+    localStorage.setItem(timerKey, end.toString());
     setRemaining(seconds);
   };
 
   const stopTimer = () => {
     endTimeRef.current = null;
     setRemaining(null);
+    localStorage.removeItem(timerKey);
   };
 
   const isExerciseComplete = log.sets.length >= target.sets && log.sets.every(s => s.completed);
@@ -140,7 +151,7 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 )}
               </svg>
-              {remaining !== null ? `STOP ${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}` : exerciseDef.defaultRest || target.rest}
+              {remaining !== null ? `STOP ${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}` : formatRestDisplay(target.rest || exerciseDef.defaultRest || '60')}
             </button>
           </div>
         </div>
@@ -245,4 +256,21 @@ export default function ExerciseCard({ exerciseDef, target, log, previousLog, hi
       />
     </div>
   );
+}
+
+/** Parse any rest time string into seconds. Handles "90", "90s", "2 min", "2-3 min", "60-90 sec". Uses upper bound for ranges. */
+function parseRestSeconds(value: string): number {
+  const str = value.toLowerCase().trim();
+  // Extract all numbers
+  const nums = str.match(/\d+/g)?.map(Number);
+  if (!nums || nums.length === 0) return 60;
+  // Use last (upper bound) number
+  const n = nums[nums.length - 1];
+  if (str.includes('min')) return n * 60;
+  return n;
+}
+
+function formatRestDisplay(value: string): string {
+  const secs = parseRestSeconds(value);
+  return `${secs}s`;
 }

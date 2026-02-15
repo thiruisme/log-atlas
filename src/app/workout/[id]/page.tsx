@@ -19,6 +19,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isRecoverModalOpen, setIsRecoverModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -93,8 +94,16 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   };
 
   const handleDiscardRestore = () => {
-    localStorage.removeItem(`workout_draft_${id}`);
+    // Keep draftLog in memory so user can recover it later
     setIsRestoreModalOpen(false);
+  };
+
+  const confirmRecover = () => {
+    if (draftLog) {
+      setLog(draftLog);
+      setDraftLog(null);
+      setIsRecoverModalOpen(false);
+    }
   };
 
   const handleFinish = () => {
@@ -118,7 +127,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
   
   const confirmCancel = () => {
       localStorage.removeItem(`workout_draft_${id}`);
-      router.back();
+      router.push('/');
   };
 
   return (
@@ -129,8 +138,8 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
       */}
       <div className="bg-card pt-8 pb-12 px-6 rounded-b-[3rem] border-b border-card-border mb-8 shadow-xl">
            <div className="max-w-md mx-auto relative">
-               <button 
-                onClick={() => setIsCancelModalOpen(true)}
+               <button
+                onClick={() => router.push('/')}
                 className="absolute -top-2 -left-2 p-2 text-text-muted hover:text-foreground transition-colors"
                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -162,6 +171,7 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
           return (
             <ExerciseCard
               key={target.exerciseId}
+              workoutId={id}
               exerciseDef={exerciseDef}
               target={target}
               log={currentExLog}
@@ -171,15 +181,30 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
             />
           );
         })}
+
+        {draftLog && (
+          <button
+            onClick={() => setIsRecoverModalOpen(true)}
+            className="w-full text-center py-4 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-accent transition-colors"
+          >
+            Recover Previous Session
+          </button>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/90 to-transparent z-30 pointer-events-none">
-        <div className="max-w-md mx-auto pointer-events-auto">
-          <button 
+        <div className="max-w-md mx-auto pointer-events-auto space-y-3">
+          <button
             onClick={handleFinish}
             className="block w-full bg-foreground text-background text-center py-5 rounded-[2rem] font-black text-xl shadow-2xl hover:translate-y-[-2px] active:translate-y-[0px] transition-all uppercase italic tracking-tighter"
           >
             Finish Workout
+          </button>
+          <button
+            onClick={() => setIsCancelModalOpen(true)}
+            className="block w-full text-center py-2 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-error transition-colors"
+          >
+            Discard Workout
           </button>
         </div>
       </div>
@@ -188,9 +213,9 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={confirmCancel}
-        title="Cancel Workout?"
+        title="Discard Workout?"
         message="All progress for this session will be lost permanently."
-        confirmText="Yes, Cancel"
+        confirmText="Yes, Discard"
         variant="danger"
       />
 
@@ -204,25 +229,25 @@ export default function WorkoutPage({ params }: { params: Promise<{ id: string }
         disabled={isSaving}
       />
 
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={isRestoreModalOpen}
-        onClose={handleDiscardRestore} 
+        onClose={handleDiscardRestore}
         onConfirm={handleRestore}
         title="Resume Session?"
         message="We found an unsaved session. Do you want to pick up where you left off?"
         confirmText="Resume"
         cancelText="Start New"
       />
-      
-      {/* Custom override for the Restore Modal cancellation to call handleDiscardRestore */}
-      {isRestoreModalOpen && (
-        <div className="hidden">
-           {/* This is a hacky way to intercept. Better to just modify the Modal use or add a prop. 
-               Let's just use the props correctly. The Modal component has cancelText but the onClick for cancel is onClose.
-               We can wrap the ConfirmationModal to specific restore behavior or just use it.
-           */}
-        </div>
-      )}
+
+      <ConfirmationModal
+        isOpen={isRecoverModalOpen}
+        onClose={() => setIsRecoverModalOpen(false)}
+        onConfirm={confirmRecover}
+        title="Recover Session?"
+        message="Your current workout will be discarded and the previous session will be restored."
+        confirmText="Recover"
+        variant="danger"
+      />
     </main>
   );
 }

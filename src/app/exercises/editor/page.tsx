@@ -26,7 +26,7 @@ function ExerciseEditorContent() {
     equipment: 'Other',
     defaultSets: 3,
     defaultReps: '10',
-    defaultRest: '90s',
+    defaultRest: '90',
     notes: '',
     videoUrl: ''
   });
@@ -43,7 +43,7 @@ function ExerciseEditorContent() {
         equipment: 'Other',
         defaultSets: 3,
         defaultReps: '10',
-        defaultRest: '90s',
+        defaultRest: '90',
         notes: '',
         videoUrl: ''
     };
@@ -188,13 +188,15 @@ function ExerciseEditorContent() {
         </div>
 
         <div>
-           <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Default Rest Time</label>
-           <input 
-              type="text" 
-              value={form.defaultRest}
-              onChange={e => setForm({...form, defaultRest: e.target.value})}
+           <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Default Rest (seconds)</label>
+           <input
+              type="number"
+              min="0"
+              step="5"
+              value={parseInt(form.defaultRest) || ''}
+              onChange={e => setForm({...form, defaultRest: String(Math.max(0, parseInt(e.target.value) || 0))})}
               className="w-full bg-card border border-card-border p-4 rounded-xl font-bold focus:outline-none focus:border-accent"
-              placeholder="e.g. 90s or 2 min"
+              placeholder="e.g. 90"
             />
         </div>
 
